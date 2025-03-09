@@ -57,11 +57,6 @@ export default class ProgressBarPlugin extends Plugin {
 				return;
 			}
 
-			if (endDate < startDate) {
-				containerEl.setText('End date must be after start date.');
-				return;
-			}
-
 			const totalInterval = Interval.fromDateTimes(startDate, endDate);
 			const elapsedInterval = Interval.fromDateTimes(startDate, currentDate);
 
