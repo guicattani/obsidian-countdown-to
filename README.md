@@ -1,94 +1,106 @@
-# Obsidian Sample Plugin
 
-This is a sample plugin for Obsidian (https://obsidian.md).
 
-This project uses TypeScript to provide type checking and documentation.
-The repo depends on the latest plugin API (obsidian.d.ts) in TypeScript Definition format, which contains TSDoc comments describing what it does.
+# CountdownTo
 
-This sample plugin demonstrates some of the basic functionality the plugin API can do.
-- Adds a ribbon icon, which shows a Notice when clicked.
-- Adds a command "Open Sample Modal" which opens a Modal.
-- Adds a plugin setting tab to the settings page.
-- Registers a global click event and output 'click' to the console.
-- Registers a global interval which logs 'setInterval' to the console.
+![CountdownTo](./screenshot.png)
 
-## First time developing plugins?
+Track time until important deadlines, events, or milestones with visual progress indicators.
 
-Quick starting guide for new plugin devs:
+## Features
 
-- Check if [someone already developed a plugin for what you want](https://obsidian.md/plugins)! There might be an existing plugin similar enough that you can partner up with.
-- Make a copy of this repo as a template with the "Use this template" button (login to GitHub if you don't see it).
-- Clone your repo to a local development folder. For convenience, you can place this folder in your `.obsidian/plugins/your-plugin-name` folder.
-- Install NodeJS, then run `npm i` in the command line under your repo folder.
-- Run `npm run dev` to compile your plugin from `main.ts` to `main.js`.
-- Make changes to `main.ts` (or create new `.ts` files). Those changes should be automatically compiled into `main.js`.
-- Reload Obsidian to load the new version of your plugin.
-- Enable plugin in settings window.
-- For updates to the Obsidian API run `npm update` in the command line under your repo folder.
+- Create visual progress bars that count down to specific dates
+- Different progress bar types: `Line`, `Circle`, `SemiCircle`, and `Square`
+- Customizable appearance with color options
+- Flexible date and time formatting using Luxon
+- Custom info text with placeholders for dates, percentages, and durations
+- Progress can be shown as forward progress or as a countdown (days until)
+- Configurable completion messages
 
-## Releasing new releases
+## Manual Installation
 
-- Update your `manifest.json` with your new version number, such as `1.0.1`, and the minimum Obsidian version required for your latest release.
-- Update your `versions.json` file with `"new-plugin-version": "minimum-obsidian-version"` so older versions of Obsidian can download an older version of your plugin that's compatible.
-- Create new GitHub release using your new version number as the "Tag version". Use the exact version number, don't include a prefix `v`. See here for an example: https://github.com/obsidianmd/obsidian-sample-plugin/releases
-- Upload the files `manifest.json`, `main.js`, `styles.css` as binary attachments. Note: The manifest.json file must be in two places, first the root path of your repository and also in the release.
-- Publish the release.
+1. Download the latest release from the [GitHub releases page](https://github.com/guicattani/countdown-to/releases)
+2. Extract the files to your Obsidian vault's plugins folder: `<vault>/.obsidian/plugins/countdown-to/`
+3. Reload Obsidian
+4. Enable the plugin in Obsidian settings under Community Plugins
 
-> You can simplify the version bump process by running `npm version patch`, `npm version minor` or `npm version major` after updating `minAppVersion` manually in `manifest.json`.
-> The command will bump version in `manifest.json` and `package.json`, and add the entry for the new version to `versions.json`
+## How to Use
 
-## Adding your plugin to the community plugin list
+Create a countdown progress bar by adding a code block with the `progressbar` language identifier:
 
-- Check the [plugin guidelines](https://docs.obsidian.md/Plugins/Releasing/Plugin+guidelines).
-- Publish an initial version.
-- Make sure you have a `README.md` file in the root of your repo.
-- Make a pull request at https://github.com/obsidianmd/obsidian-releases to add your plugin.
-
-## How to use
-
-- Clone this repo.
-- Make sure your NodeJS is at least v16 (`node --version`).
-- `npm i` or `yarn` to install dependencies.
-- `npm run dev` to start compilation in watch mode.
-
-## Manually installing the plugin
-
-- Copy over `main.js`, `styles.css`, `manifest.json` to your vault `VaultFolder/.obsidian/plugins/your-plugin-id/`.
-
-## Improve code quality with eslint (optional)
-- [ESLint](https://eslint.org/) is a tool that analyzes your code to quickly find problems. You can run ESLint against your plugin to find common bugs and ways to improve your code. 
-- To use eslint with this project, make sure to install eslint from terminal:
-  - `npm install -g eslint`
-- To use eslint to analyze this project use this command:
-  - `eslint main.ts`
-  - eslint will then create a report with suggestions for code improvement by file and line number.
-- If your source code is in a folder, such as `src`, you can use eslint with this command to analyze all files in that folder:
-  - `eslint .\src\`
-
-## Funding URL
-
-You can include funding URLs where people who use your plugin can financially support it.
-
-The simple way is to set the `fundingUrl` field to your link in your `manifest.json` file:
-
-```json
-{
-    "fundingUrl": "https://buymeacoffee.com"
-}
+````markdown
+```progressbar
+title: Project Deadline
+startDate: 2025-03-12
+endDate: 2025-04-11
+type: Circle
+color: #ff5722
+trailColor: #f5f5f5
+progressType: countdown
+infoFormat: {percent}% complete - {remaining} until {end(LLL d, yyyy)}
 ```
+````
 
-If you have multiple URLs, you can also do:
+### Required Parameters
 
-```json
-{
-    "fundingUrl": {
-        "Buy Me a Coffee": "https://buymeacoffee.com",
-        "GitHub Sponsor": "https://github.com/sponsors",
-        "Patreon": "https://www.patreon.com/"
-    }
-}
-```
+- `endDate`: The target date to count down to (ISO format: YYYY-MM-DDTHH:MM:SS)
+- `startDate`: Start date for the progress calculation (ISO format: YYYY-MM-DDTHH:MM:SS)
 
-## API Documentation
+### Optional Parameters
 
-See https://github.com/obsidianmd/obsidian-api
+- `title`: Title of the countdown (show above the progress bar)
+- `type`: Progress bar type - `line`, `circle`, `semicircle`, or `square` (defaults to `line`)
+- `color`: Color for the progress bar (HEX format)
+- `trailColor`: Color for the incomplete part of the progress bar (HEX format)
+- `progressType`: `progress` (default) or `countdown`
+- `onCompleteText`: Text to display when the countdown is complete
+- `infoFormat`: Custom format for the information text
+
+## Formatting Options
+
+The `infoFormat` parameter supports various placeholders and Luxon formatting options:
+
+### Basic Placeholders
+
+- `{percent}` - Percentage of completion
+- `{start}` - Start date (ISO format)
+- `{end}` - End date (ISO format)
+- `{current}` - Current date (ISO format)
+- `{remaining}` - Remaining time in human-readable format
+- `{elapsed}` - Elapsed time in human-readable format
+- `{total}` - Total duration in human-readable format
+
+### Luxon Formatting
+
+You can format dates and durations using [Luxon's](https://moment.github.io/luxon/#/formatting?id=table-of-tokens) formatting syntax:
+
+- `{start(format)}` - Format start date
+- `{end(format)}` - Format end date
+- `{current(format)}` - Format current date
+- `{remaining(format)}` - Format remaining duration
+- `{elapsed(format)}` - Format elapsed duration
+- `{total(format)}` - Format total duration
+
+Examples:
+- `{end(LLL d, yyyy)}` displays the end date as "Apr 11, 2025"
+- `{end(EEEE, MMMM d, yyyy)}` displays as "Thursday, April 11, 2025"
+
+See the [Luxon formatting reference](https://moment.github.io/luxon/#/formatting?id=table-of-tokens) for all available format tokens.
+
+## Configuration
+
+You can configure default settings for all progress bars in the plugin settings:
+
+1. Open Obsidian Settings
+2. Navigate to the "Countdown To" plugin settings
+3. Customize the default bar type, colors, progress type, and info format
+
+All settings can be overridden in individual progress bar code blocks.
+
+## Support
+
+If you encounter any issues or have feature requests, please [open an issue](https://github.com/guicattani/countdown-to/issues) on GitHub.
+
+## Credits
+
+- Uses [progressbar.js](https://kimmobrunfeldt.github.io/progressbar.js/) for rendering progress bars
+- Uses [Luxon](https://moment.github.io/luxon/) for date and time handling

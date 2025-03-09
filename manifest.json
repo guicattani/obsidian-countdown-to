@@ -1,11 +1,10 @@
 {
-	"id": "obsidian-progress-bar",
-	"name": "Progress Bar",
+	"id": "obsidian-countdown-to",
+	"name": "Countdown To",
 	"version": "1.0.0",
 	"minAppVersion": "0.15.0",
 	"description": "Create countdown progress bars in your notes",
 	"author": "Gui Cattani",
 	"authorUrl": "https://github.com/guicattani",
-	"fundingUrl": "https://obsidian.md/pricing",
 	"isDesktopOnly": false
 }

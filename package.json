@@ -1,5 +1,5 @@
 {
-	"name": "obsidian-progress-bar",
+	"name": "obsidian-countdown-to",
 	"version": "1.0.0",
 	"description": "Create countdown progress bars in your notes",
 	"main": "main.js",
@@ -17,6 +17,7 @@
 	"author": "Gui Cattani",
 	"license": "MIT",
 	"devDependencies": {
+		"@types/luxon": "^3.4.2",
 		"@types/node": "^16.11.6",
 		"@types/progressbar.js": "^1.1.7",
 		"@typescript-eslint/eslint-plugin": "5.29.0",
@@ -28,6 +29,7 @@
 		"typescript": "4.7.4"
 	},
 	"dependencies": {
+		"luxon": "^3.5.0",
 		"progressbar.js": "^1.1.1"
 	}
 }
