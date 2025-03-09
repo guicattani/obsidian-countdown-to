@@ -6,3 +6,36 @@ available in the app when your plugin is enabled.
 If your plugin does not need CSS, delete this file.
 
 */
+
+.progress-bar-container {
+    position: relative;
+    margin: 20px 0;
+    padding: 10px;
+    border-radius: 5px;
+    background-color: var(--background-secondary);
+}
+
+.progress-bar-title {
+    font-weight: bold;
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+.progress-bar-info {
+    text-align: center;
+    font-size: 0.9em;
+    color: var(--text-muted);
+    margin-top: 5px;
+}
+
+/* Circle, SemiCircle and Square need more height */
+.progress-bar-circle,
+.progress-bar-semicircle,
+.progress-bar-square {
+    height: 100px;
+}
+
+/* Line can stay with the default height */
+.progress-bar-line {
+    height: 20px;
+}
