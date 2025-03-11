@@ -99,7 +99,7 @@ export default class ProgressBarPlugin extends Plugin {
 					.replace(/{total\((.*?)\)}/g, (_match: string, format: string) => totalDuration.toFormat(format));
 
 				infoText = infoText
-					.replace(/{percent}/g, Math.round(progress * 100).toString())
+					.replace(/{percent}/g, Math.floor(progress * 100).toString())
 					.replace(/{start}/g, startDate.toISODate() || '')
 					.replace(/{end}/g, endDate.toISODate() || '')
 					.replace(/{current}/g, currentDate.toISODate() || '')
@@ -149,7 +149,7 @@ export default class ProgressBarPlugin extends Plugin {
 			if (progressType.toLowerCase() === 'countdown') {
 				bar.set(1.0 - progress);
 			} else {
-				bar.set(progress);
+				bar.set(Math.floor(progress * 100) / 100);
 			}
 
 			if (params.title) {
