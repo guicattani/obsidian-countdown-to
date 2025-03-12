@@ -9,6 +9,8 @@ interface ProgressBarSettings {
 	defaultProgressType: string;
 	defaultOnCompleteText: string;
 	defaultInfoFormat: string;
+	defaultUpdateInRealTime: boolean;
+	defaultUpdateIntervalSeconds: number;
 }
 
 const DEFAULT_SETTINGS: ProgressBarSettings = {
@@ -18,19 +20,38 @@ const DEFAULT_SETTINGS: ProgressBarSettings = {
 	defaultProgressType: 'forward',
 	defaultOnCompleteText: '{title} is done!',
 	defaultInfoFormat: '{percent}% - {remaining} remaining',
+	defaultUpdateInRealTime: false,
+	defaultUpdateIntervalSeconds: 1,
+}
+
+interface ProgressBarInstance {
+	element: HTMLElement;
+	bar: any;
+	infoEl: HTMLElement;
+	params: any;
+	updateTimer: number | null;
 }
 
 export default class ProgressBarPlugin extends Plugin {
 	settings: ProgressBarSettings;
+	progressBars: Map<string, ProgressBarInstance> = new Map();
 
 	async onload() {
 		await this.loadSettings();
 
-		this.registerMarkdownCodeBlockProcessor('progressbar', (source, el) => {
-			this.renderProgressBar(source, el);
+		this.registerMarkdownCodeBlockProcessor('progressbar', (source, el, _ctx) => {
+			const id = Math.random().toString(36).substring(2, 15);
+			this.renderProgressBar(source, el, id);
 		});
 
 		this.addSettingTab(new ProgressBarSettingTab(this.app, this));
+		this.register(() => {
+			this.cleanupAllProgressBars();
+		});
+	}
+
+	onunload() {
+		this.cleanupAllProgressBars();
 	}
 
 	async loadSettings() {
@@ -39,78 +60,76 @@ export default class ProgressBarPlugin extends Plugin {
 
 	async saveSettings() {
 		await this.saveData(this.settings);
+		this.refreshAllProgressBars();
 	}
 
-	renderProgressBar(source: string, el: HTMLElement) {
+	cleanupProgressBar(id: string) {
+		const progressBar = this.progressBars.get(id);
+		if (progressBar && progressBar.updateTimer) {
+			window.clearTimeout(progressBar.updateTimer);
+			this.progressBars.delete(id);
+		}
+	}
+
+	cleanupAllProgressBars() {
+		this.progressBars.forEach((data) => {
+			if (data.updateTimer) {
+				window.clearTimeout(data.updateTimer);
+			}
+		});
+		this.progressBars.clear();
+	}
+
+	refreshAllProgressBars() {
+		this.progressBars.forEach((data, id) => {
+			if (data.updateTimer) {
+				window.clearTimeout(data.updateTimer);
+				data.updateTimer = null;
+			}
+
+			this.renderProgressBar(data.params, data.element, id);
+		});
+	}
+
+	renderProgressBar(source: string, el: HTMLElement, id: string) {
 		try {
+      this.cleanupProgressBar(id);
+
 			const params = this.parseProgressBarParams(source);
+
+
+			el.empty();
 			const containerEl = el.createDiv({ cls: 'countdown-to-container' });
 
-			const startDate = params.startDate ?
-				DateTime.fromISO(params.startDate) :
-				DateTime.now();
+			const startDate = DateTime.fromISO(params.startDate);
 			const endDate = DateTime.fromISO(params.endDate);
-			const currentDate = DateTime.now();
 
-			if (!startDate.isValid || !endDate.isValid) {
-				containerEl.setText('Invalid date format. Please use ISO format (YYYY-MM-DDTHH:MM:SS).');
+			if (!startDate.isValid) {
+				containerEl.setText('Invalid start date format. ' +
+					                  'Please use ISO + time format (YYYY-MM-DDTHH:MM:SS).');
 				return;
 			}
 
-			const totalInterval = Interval.fromDateTimes(startDate, endDate);
-			const elapsedInterval = Interval.fromDateTimes(startDate, currentDate);
+			if (!endDate.isValid) {
+				containerEl.setText('Invalid end date format. ' +
+					                  'Please use ISO + time format (YYYY-MM-DDTHH:MM:SS).');
+				return;
+			}
 
-			const totalMillis = totalInterval.length();
-			const elapsedMillis = Math.min(elapsedInterval.length(), totalMillis);
-
-			let progress = Math.min(Math.max(elapsedMillis / totalMillis, 0), 1);
-
-			const barColor = params.color || this.settings.defaultBarColor;
-			const trailColor = params.trailColor || this.settings.defaultTrailColor;
-			const barType = params.type || this.settings.defaultBarType;
-			const progressType = params.progressType || this.settings.defaultProgressType;
-			const onCompleteText = params.onCompleteText || this.settings.defaultOnCompleteText;
-			const infoFormat = params.infoFormat || this.settings.defaultInfoFormat;
+			if (endDate < startDate) {
+				containerEl.setText('End date must be after start date.');
+				return;
+			}
 
 			const progressBarEl = containerEl.createDiv({ cls: 'progress-bar-element' });
+			const barType = params.type || this.settings.defaultBarType;
 			progressBarEl.addClass(`progress-bar-${barType.toLowerCase()}`);
 
 			const infoEl = containerEl.createDiv({ cls: 'progress-bar-info' });
 
-			if (progress >= 1) {
-				infoEl.setText(
-          onCompleteText.replace(/{title}/g, params.title || '')
-        );
-			} else {
-				let infoText = infoFormat;
-
-				const remainingInterval = Interval.fromDateTimes(currentDate, endDate);
-				const remainingDuration = remainingInterval.toDuration(['days', 'hours', 'minutes', 'seconds']);
-
-				const elapsedDuration = elapsedInterval.toDuration(['days', 'hours', 'minutes', 'seconds']);
-
-				const totalDuration = totalInterval.toDuration(['days', 'hours', 'minutes', 'seconds']);
-				infoText = infoText
-					.replace(/{start\((.*?)\)}/g, (_match: string, format: string) => startDate.toFormat(format))
-					.replace(/{end\((.*?)\)}/g, (_match: string, format: string) => endDate.toFormat(format))
-					.replace(/{current\((.*?)\)}/g, (_match: string, format: string) => currentDate.toFormat(format))
-					.replace(/{remaining\((.*?)\)}/g, (_match: string, format: string) => remainingDuration.toFormat(format))
-					.replace(/{elapsed\((.*?)\)}/g, (_match: string, format: string) => elapsedDuration.toFormat(format))
-					.replace(/{total\((.*?)\)}/g, (_match: string, format: string) => totalDuration.toFormat(format));
-
-				infoText = infoText
-					.replace(/{percent}/g, Math.floor(progress * 100).toString())
-					.replace(/{start}/g, startDate.toISODate() || '')
-					.replace(/{end}/g, endDate.toISODate() || '')
-					.replace(/{current}/g, currentDate.toISODate() || '')
-					.replace(/{remaining}/g, this.formatDuration(remainingDuration))
-					.replace(/{elapsed}/g, this.formatDuration(elapsedDuration))
-					.replace(/{total}/g, this.formatDuration(totalDuration));
-
-				infoEl.setText(infoText);
-			}
-
 			let bar;
+			const barColor = params.color || this.settings.defaultBarColor;
+			const trailColor = params.trailColor || this.settings.defaultTrailColor;
 			const commonOptions = {
 				strokeWidth: 4,
 				color: barColor,
@@ -146,20 +165,111 @@ export default class ProgressBarPlugin extends Plugin {
 					break;
 			}
 
-			if (progressType.toLowerCase() === 'countdown') {
-				bar.set(1.0 - progress);
-			} else {
-				bar.set(Math.floor(progress * 100) / 100);
-			}
-
 			if (params.title) {
 				const titleEl = containerEl.createDiv({ cls: 'progress-bar-title' });
 				titleEl.setText(params.title);
 				containerEl.prepend(titleEl);
 			}
 
+			this.progressBars.set(id, {
+				element: el,
+				bar: bar,
+				infoEl: infoEl,
+				params: source,
+				updateTimer: null
+			});
+
+			this.updateProgressBar(id, startDate, endDate);
+
+			const updateInRealTime = params.updateInRealTime !== undefined ?
+                                params.updateInRealTime === 'true' :
+                                this.settings.defaultUpdateInRealTime;
+
+			if (updateInRealTime) {
+				const updateInterval = params.updateInterval ?
+                                parseInt(params.updateInterval, 10) :
+                                this.settings.defaultUpdateIntervalSeconds;
+
+				const timer = window.setTimeout(() => {
+					this.scheduleUpdate(id, startDate, endDate, updateInterval);
+				}, updateInterval * 1000);
+
+				this.progressBars.get(id)!.updateTimer = timer;
+			}
+
 		} catch (error) {
 			el.setText('Error rendering progress bar: ' + error.message);
+		}
+	}
+
+	scheduleUpdate(id: string, startDate: DateTime, endDate: DateTime, defaultUpdateIntervalSeconds: number) {
+		const progressBar = this.progressBars.get(id);
+		if (!progressBar) return;
+
+		this.updateProgressBar(id, startDate, endDate);
+
+    const timer = window.setTimeout(() => {
+      this.scheduleUpdate(id, startDate, endDate, defaultUpdateIntervalSeconds);
+    }, defaultUpdateIntervalSeconds * 1000);
+
+    progressBar.updateTimer = timer;
+	}
+
+	updateProgressBar(id: string, startDate: DateTime, endDate: DateTime) {
+		const progressBar = this.progressBars.get(id);
+		if (!progressBar) return;
+
+		const params = this.parseProgressBarParams(progressBar.params);
+		const currentDate = DateTime.now();
+
+		const totalInterval = Interval.fromDateTimes(startDate, endDate);
+		const elapsedInterval = Interval.fromDateTimes(startDate, currentDate);
+
+		const totalMillis = totalInterval.length();
+		const elapsedMillis = Math.min(elapsedInterval.length(), totalMillis);
+
+		let progress = Math.min(Math.max(elapsedMillis / totalMillis, 0), 1);
+		const progressType = params.progressType || this.settings.defaultProgressType;
+		const onCompleteText = params.onCompleteText || this.settings.defaultOnCompleteText;
+		const infoFormat = params.infoFormat || this.settings.defaultInfoFormat;
+
+		if (progressType.toLowerCase() === 'countdown') {
+			progressBar.bar.set(1.0 - progress);
+		} else {
+			progressBar.bar.set(Math.floor(progress * 100) / 100);
+		}
+
+		if (progress >= 1) {
+			progressBar.infoEl.setText(
+				onCompleteText.replace(/{title}/g, params.title || '')
+			);
+		} else {
+			let infoText = infoFormat;
+
+			const remainingInterval = Interval.fromDateTimes(currentDate, endDate);
+			const remainingDuration = remainingInterval.toDuration(['days', 'hours', 'minutes', 'seconds']);
+
+			const elapsedDuration = elapsedInterval.toDuration(['days', 'hours', 'minutes', 'seconds']);
+
+			const totalDuration = totalInterval.toDuration(['days', 'hours', 'minutes', 'seconds']);
+			infoText = infoText
+				.replace(/{start:(.*?)}/g, (_match: string, format: string) => startDate.toFormat(format))
+				.replace(/{end:(.*?)}/g, (_match: string, format: string) => endDate.toFormat(format))
+				.replace(/{current:(.*?)}/g, (_match: string, format: string) => currentDate.toFormat(format))
+				.replace(/{remaining:(.*?)}/g, (_match: string, format: string) => remainingDuration.toFormat(format))
+				.replace(/{elapsed:(.*?)}/g, (_match: string, format: string) => elapsedDuration.toFormat(format))
+				.replace(/{total:(.*?)}/g, (_match: string, format: string) => totalDuration.toFormat(format));
+
+			infoText = infoText
+				.replace(/{percent}/g, Math.floor(progress * 100).toString())
+				.replace(/{start}/g, startDate.toISODate() || '')
+				.replace(/{end}/g, endDate.toISODate() || '')
+				.replace(/{current}/g, currentDate.toISODate() || '')
+				.replace(/{remaining}/g, this.formatDuration(remainingDuration))
+				.replace(/{elapsed}/g, this.formatDuration(elapsedDuration))
+				.replace(/{total}/g, this.formatDuration(totalDuration));
+
+			progressBar.infoEl.setText(infoText);
 		}
 	}
 
@@ -168,11 +278,23 @@ export default class ProgressBarPlugin extends Plugin {
 		const lines = source.trim().split('\n');
 
 		lines.forEach(line => {
-			const [key, value] = line.split(':').map(part => part.trim());
-			if (key && value) {
-				params[key] = value;
+			const colonIndex = line.indexOf(':');
+			if (colonIndex !== -1) {
+				const key = line.substring(0, colonIndex).trim();
+				const value = line.substring(colonIndex + 1).trim();
+				if (key && value) {
+					params[key] = value;
+				}
 			}
 		});
+
+		if (!params.startDate) {
+			throw new Error('Start date is required');
+		}
+
+		if (DateTime.fromISO(params.startDate) > DateTime.now()) {
+			throw new Error('Start date must be now or in the past');
+		}
 
 		if (!params.endDate) {
 			throw new Error('End date is required');
@@ -209,11 +331,8 @@ class ProgressBarSettingTab extends PluginSettingTab {
 
 	display(): void {
 		const {containerEl} = this;
-
 		containerEl.empty();
-
 		containerEl.createEl('h2', {text: 'Countdown To Settings'});
-    containerEl.createEl('a', {href: 'https://github.com/guicattani/countdown-to?tab=readme-ov-file#how-to-use', text: 'How to use'});
 
 		new Setting(containerEl)
 			.setName('Default bar type')
@@ -238,6 +357,28 @@ class ProgressBarSettingTab extends PluginSettingTab {
 				.setValue(this.plugin.settings.defaultProgressType)
 				.onChange(async (value) => {
 					this.plugin.settings.defaultProgressType = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('Update in real-time')
+			.setDesc('Update progress bars according to the update interval')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.defaultUpdateInRealTime)
+				.onChange(async (value) => {
+					this.plugin.settings.defaultUpdateInRealTime = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('Update interval')
+			.setDesc('How often to update the progress bars (in seconds). This will affect performance.')
+			.addSlider(slider => slider
+				.setLimits(0.5, 20, 0.5)
+				.setValue(this.plugin.settings.defaultUpdateIntervalSeconds)
+				.setDynamicTooltip()
+				.onChange(async (value) => {
+					this.plugin.settings.defaultUpdateIntervalSeconds = value;
 					await this.plugin.saveSettings();
 				}));
 
@@ -292,7 +433,8 @@ class ProgressBarSettingTab extends PluginSettingTab {
 					this.plugin.settings.defaultTrailColor = value;
 					await this.plugin.saveSettings();
 				}));
-    containerEl.createEl('i', {text: 'All settings can be overridden in the markdown code block.'});
+		containerEl.createEl('i', {text: 'All settings can be overridden in the markdown code block. If stuck please refer to the '});
+    containerEl.createEl('a', {href: 'https://github.com/guicattani/countdown-to?tab=readme-ov-file#how-to-use', text: 'how to use guide'});
 	}
 }
 
@@ -322,10 +464,12 @@ class LuxonFormatHelpModal extends Modal {
 		luxonList.createEl('li', {text: '{start(format)} - Format start date'});
 		luxonList.createEl('li', {text: '{end(format)} - Format end date'});
 		luxonList.createEl('li', {text: '{current(format)} - Format current date'});
+		contentEl.createEl('a', {href: 'https://moment.github.io/luxon/#/formatting?id=table-of-tokens', text: 'Luxon Formatting Reference'});
+
+    contentEl.createEl('p', {text: 'For durations the only tokens that are supported are for days, hours, minutes and seconds:'});
 		luxonList.createEl('li', {text: '{remaining(format)} - Format remaining time'});
 		luxonList.createEl('li', {text: '{elapsed(format)} - Format elapsed time'});
 		luxonList.createEl('li', {text: '{total(format)} - Format total duration'});
-    contentEl.createEl('a', {href: 'https://moment.github.io/luxon/#/formatting?id=table-of-tokens', text: 'Luxon Formatting Reference'});
 
 		contentEl.createEl('h3', {text: 'Examples'});
 		const examplesList = contentEl.createEl('ul');
