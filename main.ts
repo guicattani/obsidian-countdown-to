@@ -24,304 +24,18 @@ const DEFAULT_SETTINGS: ProgressBarSettings = {
   defaultUpdateIntervalSeconds: 1,
 };
 
+// Minimal interface for progressbar.js instances
+interface ProgressBarJs {
+  set(progress: number): void;
+}
+
 interface ProgressBarInstance {
   element: HTMLElement;
-  bar: any;
+  bar: ProgressBarJs;
   infoEl: HTMLElement;
-  params: any;
+  params: string;
   updateTimer: number | null;
 }
-
-export default class ProgressBarPlugin extends Plugin {
-  settings: ProgressBarSettings;
-
-  progressBars: Map<string, ProgressBarInstance> = new Map();
-
-  async onload() {
-    await this.loadSettings();
-
-    this.registerMarkdownCodeBlockProcessor('progressbar', (source, el) => {
-      const id = Math.random().toString(36).substring(2, 15);
-      this.renderProgressBar(source, el, id);
-    });
-
-    this.addSettingTab(new ProgressBarSettingTab(this.app, this));
-    this.register(() => {
-      this.cleanupAllProgressBars();
-    });
-  }
-
-  onunload() {
-    this.cleanupAllProgressBars();
-  }
-
-  async loadSettings() {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
-  }
-
-  async saveSettings() {
-    await this.saveData(this.settings);
-    this.refreshAllProgressBars();
-  }
-
-  cleanupProgressBar(id: string) {
-    const progressBar = this.progressBars.get(id);
-    if (progressBar && progressBar.updateTimer) {
-      window.clearTimeout(progressBar.updateTimer);
-      this.progressBars.delete(id);
-    }
-  }
-
-  cleanupAllProgressBars() {
-    this.progressBars.forEach((data) => {
-      if (data.updateTimer) {
-        window.clearTimeout(data.updateTimer);
-      }
-    });
-    this.progressBars.clear();
-  }
-
-  refreshAllProgressBars() {
-    this.progressBars.forEach((data, id) => {
-      if (data.updateTimer) {
-        window.clearTimeout(data.updateTimer);
-        data.updateTimer = null;
-      }
-
-      this.renderProgressBar(data.params, data.element, id);
-    });
-  }
-
-  renderProgressBar(source: string, el: HTMLElement, id: string) {
-    try {
-      this.cleanupProgressBar(id);
-
-      const params = this.parseProgressBarParams(source);
-
-
-      el.empty();
-      const containerEl = el.createDiv({ cls: 'countdown-to-container' });
-
-      const startDate = DateTime.fromISO(params.startDate);
-      const endDate = DateTime.fromISO(params.endDate);
-
-      if (!startDate.isValid) {
-        containerEl.setText('Invalid start date format. ' +
-                            'Please use ISO + time format (YYYY-MM-DDTHH:MM:SS).');
-        return;
-      }
-
-      if (!endDate.isValid) {
-        containerEl.setText('Invalid end date format. ' +
-                            'Please use ISO + time format (YYYY-MM-DDTHH:MM:SS).');
-        return;
-      }
-
-      if (endDate < startDate) {
-        containerEl.setText('End date must be after start date.');
-        return;
-      }
-
-      const progressBarEl = containerEl.createDiv({ cls: 'progress-bar-element' });
-      const barType = params.type || this.settings.defaultBarType;
-      progressBarEl.addClass(`progress-bar-${barType.toLowerCase()}`);
-
-      const infoEl = containerEl.createDiv({ cls: 'progress-bar-info' });
-
-      let bar;
-      const barColor = params.color || this.settings.defaultBarColor;
-      const trailColor = params.trailColor || this.settings.defaultTrailColor;
-      const commonOptions = {
-        strokeWidth: 4,
-        color: barColor,
-        trailColor: trailColor,
-        trailWidth: 1,
-      };
-
-      switch (barType.toLowerCase()) {
-        case 'circle':
-          bar = new ProgressBar.Circle(progressBarEl, {
-            ...commonOptions,
-            svgStyle: { width: '100%', height: '100%' },
-          });
-          break;
-        case 'semicircle':
-          bar = new ProgressBar.SemiCircle(progressBarEl, {
-            ...commonOptions,
-            svgStyle: { width: '100%', height: '100%' },
-          });
-          break;
-        case 'square':
-          bar = new ProgressBar.Square(progressBarEl, {
-            ...commonOptions,
-            svgStyle: { width: '100%', height: '100%' },
-          });
-          break;
-        case 'line':
-        default:
-          bar = new ProgressBar.Line(progressBarEl, {
-            ...commonOptions,
-            svgStyle: { width: '100%', height: '100%' },
-          });
-          break;
-      }
-
-      if (params.title) {
-        const titleEl = containerEl.createDiv({ cls: 'progress-bar-title' });
-        titleEl.setText(params.title);
-        containerEl.prepend(titleEl);
-      }
-
-      this.progressBars.set(id, {
-        element: el,
-        bar: bar,
-        infoEl: infoEl,
-        params: source,
-        updateTimer: null,
-      });
-
-      this.updateProgressBar(id, startDate, endDate);
-
-      const updateInRealTime = params.updateInRealTime !== undefined ?
-        params.updateInRealTime === 'true' :
-        this.settings.defaultUpdateInRealTime;
-
-      if (updateInRealTime) {
-        const updateInterval = params.updateInterval ?
-          parseInt(params.updateInterval, 10) :
-          this.settings.defaultUpdateIntervalSeconds;
-
-        const timer = window.setTimeout(() => {
-          this.scheduleUpdate(id, startDate, endDate, updateInterval);
-        }, updateInterval * 1000);
-
-        this.progressBars.get(id)!.updateTimer = timer;
-      }
-
-    } catch (error) {
-      el.setText('Error rendering progress bar: ' + error.message);
-    }
-  }
-
-  scheduleUpdate(id: string, startDate: DateTime, endDate: DateTime, defaultUpdateIntervalSeconds: number) {
-    const progressBar = this.progressBars.get(id);
-    if (!progressBar) return;
-
-    this.updateProgressBar(id, startDate, endDate);
-
-    const timer = window.setTimeout(() => {
-      this.scheduleUpdate(id, startDate, endDate, defaultUpdateIntervalSeconds);
-    }, defaultUpdateIntervalSeconds * 1000);
-
-    progressBar.updateTimer = timer;
-  }
-
-  updateProgressBar(id: string, startDate: DateTime, endDate: DateTime) {
-    const progressBar = this.progressBars.get(id);
-    if (!progressBar) return;
-
-    const params = this.parseProgressBarParams(progressBar.params);
-    const currentDate = DateTime.now();
-
-    const totalInterval = Interval.fromDateTimes(startDate, endDate);
-    const elapsedInterval = Interval.fromDateTimes(startDate, currentDate);
-
-    const totalMillis = totalInterval.length();
-    const elapsedMillis = Math.min(elapsedInterval.length(), totalMillis);
-
-    const progress = Math.min(Math.max(elapsedMillis / totalMillis, 0), 1);
-    const progressType = params.progressType || this.settings.defaultProgressType;
-    const onCompleteText = params.onCompleteText || this.settings.defaultOnCompleteText;
-    const infoFormat = params.infoFormat || this.settings.defaultInfoFormat;
-
-    if (progressType.toLowerCase() === 'countdown') {
-      progressBar.bar.set(1.0 - progress);
-    } else {
-      progressBar.bar.set(Math.floor(progress * 100) / 100);
-    }
-
-    if (progress >= 1) {
-      progressBar.infoEl.setText(
-        onCompleteText.replace(/{title}/g, params.title || ''),
-      );
-    } else {
-      let infoText = infoFormat;
-
-      const remainingInterval = Interval.fromDateTimes(currentDate, endDate);
-      const remainingDuration = remainingInterval.toDuration(['days', 'hours', 'minutes', 'seconds']);
-
-      const elapsedDuration = elapsedInterval.toDuration(['days', 'hours', 'minutes', 'seconds']);
-
-      const totalDuration = totalInterval.toDuration(['days', 'hours', 'minutes', 'seconds']);
-      infoText = infoText
-        .replace(/{start:(.*?)}/g, (_match: string, format: string) => startDate.toFormat(format))
-        .replace(/{end:(.*?)}/g, (_match: string, format: string) => endDate.toFormat(format))
-        .replace(/{current:(.*?)}/g, (_match: string, format: string) => currentDate.toFormat(format))
-        .replace(/{remaining:(.*?)}/g, (_match: string, format: string) => remainingDuration.toFormat(format))
-        .replace(/{elapsed:(.*?)}/g, (_match: string, format: string) => elapsedDuration.toFormat(format))
-        .replace(/{total:(.*?)}/g, (_match: string, format: string) => totalDuration.toFormat(format));
-
-      infoText = infoText
-        .replace(/{percent}/g, Math.floor(progress * 100).toString())
-        .replace(/{start}/g, startDate.toISODate() || '')
-        .replace(/{end}/g, endDate.toISODate() || '')
-        .replace(/{current}/g, currentDate.toISODate() || '')
-        .replace(/{remaining}/g, this.formatDuration(remainingDuration))
-        .replace(/{elapsed}/g, this.formatDuration(elapsedDuration))
-        .replace(/{total}/g, this.formatDuration(totalDuration));
-
-      progressBar.infoEl.setText(infoText);
-    }
-  }
-
-  parseProgressBarParams(source: string) {
-    const params: any = {};
-    const lines = source.trim().split('\n');
-
-    lines.forEach(line => {
-      const colonIndex = line.indexOf(':');
-      if (colonIndex !== -1) {
-        const key = line.substring(0, colonIndex).trim();
-        const value = line.substring(colonIndex + 1).trim();
-        if (key && value) {
-          params[key] = value;
-        }
-      }
-    });
-
-    if (!params.startDate) {
-      throw new Error('Start date is required');
-    }
-
-    if (DateTime.fromISO(params.startDate) > DateTime.now()) {
-      throw new Error('Start date must be now or in the past');
-    }
-
-    if (!params.endDate) {
-      throw new Error('End date is required');
-    }
-
-    return params;
-  }
-
-  formatDuration(duration: Duration): string {
-    const days = Math.ceil(duration.as('days'));
-    const hours = Math.ceil(duration.as('hours') % 24);
-    const minutes = Math.ceil(duration.as('minutes') % 60);
-    const seconds = Math.ceil(duration.as('seconds') % 60);
-
-    if (days > 0) {
-      return `${days} day${days > 1 ? 's' : ''}`;
-    } else if (hours > 0) {
-      return `${hours} hour${hours > 1 ? 's' : ''}`;
-    } else if (minutes > 0) {
-      return `${minutes} minute${minutes > 1 ? 's' : ''}`;
-    } else {
-      return `${seconds} second${seconds > 1 ? 's' : ''}`;
-    }
-  }
-}
-
 
 class LuxonFormatHelpModal extends Modal {
   onOpen() {
@@ -496,5 +210,297 @@ class ProgressBarSettingTab extends PluginSettingTab {
         }));
     containerEl.createEl('i', { text: 'All settings can be overridden in the markdown code block. If stuck please refer to the ' });
     containerEl.createEl('a', { href: 'https://github.com/guicattani/countdown-to?tab=readme-ov-file#how-to-use', text: 'how to use guide' });
+  }
+}
+
+export default class ProgressBarPlugin extends Plugin {
+  settings: ProgressBarSettings;
+
+  progressBars = new Map<string, ProgressBarInstance>();
+
+  async onload() {
+    await this.loadSettings();
+
+    this.registerMarkdownCodeBlockProcessor('progressbar', (source, el) => {
+      const id = Math.random().toString(36).substring(2, 15);
+      this.renderProgressBar(source, el, id);
+    });
+
+    this.addSettingTab(new ProgressBarSettingTab(this.app, this));
+    this.register(() => {
+      this.cleanupAllProgressBars();
+    });
+  }
+
+  onunload() {
+    this.cleanupAllProgressBars();
+  }
+
+  async loadSettings() {
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+  }
+
+  async saveSettings() {
+    await this.saveData(this.settings);
+    this.refreshAllProgressBars();
+  }
+
+  cleanupProgressBar(id: string) {
+    const progressBar = this.progressBars.get(id);
+    if (progressBar && progressBar.updateTimer) {
+      window.clearTimeout(progressBar.updateTimer);
+      this.progressBars.delete(id);
+    }
+  }
+
+  cleanupAllProgressBars() {
+    this.progressBars.forEach((data) => {
+      if (data.updateTimer) {
+        window.clearTimeout(data.updateTimer);
+      }
+    });
+    this.progressBars.clear();
+  }
+
+  refreshAllProgressBars() {
+    this.progressBars.forEach((data, id) => {
+      if (data.updateTimer) {
+        window.clearTimeout(data.updateTimer);
+        data.updateTimer = null;
+      }
+
+      this.renderProgressBar(data.params, data.element, id);
+    });
+  }
+
+  renderProgressBar(source: string, el: HTMLElement, id: string) {
+    try {
+      this.cleanupProgressBar(id);
+
+      const params = this.parseProgressBarParams(source);
+
+      el.empty();
+      const containerEl = el.createDiv({ cls: 'countdown-to-container' });
+
+      const startDate = DateTime.fromISO(params.startDate);
+      const endDate = DateTime.fromISO(params.endDate);
+
+      if (!startDate.isValid) {
+        containerEl.setText('Invalid start date format. ' +
+                            'Please use ISO + time format (YYYY-MM-DDTHH:MM:SS).');
+        return;
+      }
+
+      if (!endDate.isValid) {
+        containerEl.setText('Invalid end date format. ' +
+                            'Please use ISO + time format (YYYY-MM-DDTHH:MM:SS).');
+        return;
+      }
+
+      if (endDate < startDate) {
+        containerEl.setText('End date must be after start date.');
+        return;
+      }
+
+      const progressBarEl = containerEl.createDiv({ cls: 'progress-bar-element' });
+      const barType = params.type || this.settings.defaultBarType;
+      progressBarEl.addClass(`progress-bar-${barType.toLowerCase()}`);
+
+      const infoEl = containerEl.createDiv({ cls: 'progress-bar-info' });
+
+      let bar;
+      const barColor = params.color || this.settings.defaultBarColor;
+      const trailColor = params.trailColor || this.settings.defaultTrailColor;
+      const commonOptions = {
+        strokeWidth: 4,
+        color: barColor,
+        trailColor: trailColor,
+        trailWidth: 1,
+      };
+
+      switch (barType.toLowerCase()) {
+        case 'circle':
+          bar = new ProgressBar.Circle(progressBarEl, {
+            ...commonOptions,
+            svgStyle: { width: '100%', height: '100%' },
+          });
+          break;
+        case 'semicircle':
+          bar = new ProgressBar.SemiCircle(progressBarEl, {
+            ...commonOptions,
+            svgStyle: { width: '100%', height: '100%' },
+          });
+          break;
+        case 'square':
+          bar = new ProgressBar.Square(progressBarEl, {
+            ...commonOptions,
+            svgStyle: { width: '100%', height: '100%' },
+          });
+          break;
+        case 'line':
+        default:
+          bar = new ProgressBar.Line(progressBarEl, {
+            ...commonOptions,
+            svgStyle: { width: '100%', height: '100%' },
+          });
+          break;
+      }
+
+      if (params.title) {
+        const titleEl = containerEl.createDiv({ cls: 'progress-bar-title' });
+        titleEl.setText(params.title);
+        containerEl.prepend(titleEl);
+      }
+
+      this.progressBars.set(id, {
+        element: el,
+        bar: bar,
+        infoEl: infoEl,
+        params: source,
+        updateTimer: null,
+      });
+
+      this.updateProgressBar(id, startDate, endDate);
+
+      const updateInRealTime = params.updateInRealTime !== undefined ?
+        params.updateInRealTime === 'true' :
+        this.settings.defaultUpdateInRealTime;
+
+      if (updateInRealTime) {
+        const updateInterval = params.updateInterval ?
+          parseInt(params.updateInterval, 10) :
+          this.settings.defaultUpdateIntervalSeconds;
+
+        const timer = window.setTimeout(() => {
+          this.scheduleUpdate(id, startDate, endDate, updateInterval);
+        }, updateInterval * 1000);
+
+        const progressBarInstance = this.progressBars.get(id);
+        if (progressBarInstance) {
+          progressBarInstance.updateTimer = timer;
+        }
+      }
+
+    } catch (error) {
+      el.setText('Error rendering progress bar: ' + error.message);
+    }
+  }
+
+  scheduleUpdate(id: string, startDate: DateTime, endDate: DateTime, defaultUpdateIntervalSeconds: number) {
+    const progressBar = this.progressBars.get(id);
+    if (!progressBar) return;
+
+    this.updateProgressBar(id, startDate, endDate);
+
+    const timer = window.setTimeout(() => {
+      this.scheduleUpdate(id, startDate, endDate, defaultUpdateIntervalSeconds);
+    }, defaultUpdateIntervalSeconds * 1000);
+
+    progressBar.updateTimer = timer;
+  }
+
+  updateProgressBar(id: string, startDate: DateTime, endDate: DateTime) {
+    const progressBar = this.progressBars.get(id);
+    if (!progressBar) return;
+
+    const params = this.parseProgressBarParams(progressBar.params);
+    const currentDate = DateTime.now();
+
+    const totalInterval = Interval.fromDateTimes(startDate, endDate);
+    const elapsedInterval = Interval.fromDateTimes(startDate, currentDate);
+
+    const totalMillis = totalInterval.length();
+    const elapsedMillis = Math.min(elapsedInterval.length(), totalMillis);
+
+    const progress = Math.min(Math.max(elapsedMillis / totalMillis, 0), 1);
+    const progressType = params.progressType || this.settings.defaultProgressType;
+    const onCompleteText = params.onCompleteText || this.settings.defaultOnCompleteText;
+    const infoFormat = params.infoFormat || this.settings.defaultInfoFormat;
+
+    if (progressType.toLowerCase() === 'countdown') {
+      progressBar.bar.set(1.0 - progress);
+    } else {
+      progressBar.bar.set(Math.floor(progress * 100) / 100);
+    }
+
+    if (progress >= 1) {
+      progressBar.infoEl.setText(
+        onCompleteText.replace(/{title}/g, params.title || ''),
+      );
+    } else {
+      let infoText = infoFormat;
+
+      const remainingInterval = Interval.fromDateTimes(currentDate, endDate);
+      const remainingDuration = remainingInterval.toDuration(['days', 'hours', 'minutes', 'seconds']);
+
+      const elapsedDuration = elapsedInterval.toDuration(['days', 'hours', 'minutes', 'seconds']);
+
+      const totalDuration = totalInterval.toDuration(['days', 'hours', 'minutes', 'seconds']);
+      infoText = infoText
+        .replace(/{start:(.*?)}/g, (_match: string, format: string) => startDate.toFormat(format))
+        .replace(/{end:(.*?)}/g, (_match: string, format: string) => endDate.toFormat(format))
+        .replace(/{current:(.*?)}/g, (_match: string, format: string) => currentDate.toFormat(format))
+        .replace(/{remaining:(.*?)}/g, (_match: string, format: string) => remainingDuration.toFormat(format))
+        .replace(/{elapsed:(.*?)}/g, (_match: string, format: string) => elapsedDuration.toFormat(format))
+        .replace(/{total:(.*?)}/g, (_match: string, format: string) => totalDuration.toFormat(format));
+
+      infoText = infoText
+        .replace(/{percent}/g, Math.floor(progress * 100).toString())
+        .replace(/{start}/g, startDate.toISODate() || '')
+        .replace(/{end}/g, endDate.toISODate() || '')
+        .replace(/{current}/g, currentDate.toISODate() || '')
+        .replace(/{remaining}/g, this.formatDuration(remainingDuration))
+        .replace(/{elapsed}/g, this.formatDuration(elapsedDuration))
+        .replace(/{total}/g, this.formatDuration(totalDuration));
+
+      progressBar.infoEl.setText(infoText);
+    }
+  }
+
+  parseProgressBarParams(source: string): Record<string, string> {
+    const params: Record<string, string> = {};
+    const lines = source.trim().split('\n');
+
+    lines.forEach(line => {
+      const colonIndex = line.indexOf(':');
+      if (colonIndex !== -1) {
+        const key = line.substring(0, colonIndex).trim();
+        const value = line.substring(colonIndex + 1).trim();
+        if (key && value) {
+          params[key] = value;
+        }
+      }
+    });
+
+    if (!params.startDate) {
+      throw new Error('Start date is required');
+    }
+
+    if (DateTime.fromISO(params.startDate) > DateTime.now()) {
+      throw new Error('Start date must be now or in the past');
+    }
+
+    if (!params.endDate) {
+      throw new Error('End date is required');
+    }
+
+    return params;
+  }
+
+  formatDuration(duration: Duration): string {
+    const days = Math.ceil(duration.as('days'));
+    const hours = Math.ceil(duration.as('hours') % 24);
+    const minutes = Math.ceil(duration.as('minutes') % 60);
+    const seconds = Math.ceil(duration.as('seconds') % 60);
+
+    if (days > 0) {
+      return `${days} day${days > 1 ? 's' : ''}`;
+    } else if (hours > 0) {
+      return `${hours} hour${hours > 1 ? 's' : ''}`;
+    } else if (minutes > 0) {
+      return `${minutes} minute${minutes > 1 ? 's' : ''}`;
+    } else {
+      return `${seconds} second${seconds > 1 ? 's' : ''}`;
+    }
   }
 }
