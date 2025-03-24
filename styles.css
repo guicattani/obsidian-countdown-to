@@ -1,18 +1,17 @@
-.countdown-to-container {
-    position: relative;
+.countdown-to-plugin.countdown-to-container {
     margin: 20px 0;
     padding: 10px;
     border-radius: 5px;
     background-color: var(--background-secondary);
 }
 
-.progress-bar-title {
+.countdown-to-plugin .progress-bar-title {
     font-weight: bold;
     margin-bottom: 10px;
     text-align: center;
 }
 
-.progress-bar-info {
+.countdown-to-plugin .progress-bar-info {
     text-align: center;
     font-size: 0.9em;
     color: var(--text-muted);
@@ -20,13 +19,13 @@
 }
 
 /* Circle, SemiCircle and Square need more height */
-.progress-bar-circle,
-.progress-bar-semicircle,
-.progress-bar-square {
+.countdown-to-plugin .progress-bar-circle,
+.countdown-to-plugin .progress-bar-semicircle,
+.countdown-to-plugin .progress-bar-square {
     height: 100px;
 }
 
 /* Line can stay with the default height */
-.progress-bar-line {
+.countdown-to-plugin .progress-bar-line {
     height: 20px;
 }

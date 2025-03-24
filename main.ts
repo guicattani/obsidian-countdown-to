@@ -17,7 +17,7 @@ const DEFAULT_SETTINGS: ProgressBarSettings = {
   defaultBarColor: '#4CAF50',
   defaultTrailColor: '#e0e0e0',
   defaultBarType: 'Line',
-  defaultProgressType: 'forward',
+  defaultProgressType: 'Forward',
   defaultOnCompleteText: '{title} is done!',
   defaultInfoFormat: '{percent}% - {remaining} remaining',
   defaultUpdateInRealTime: false,
@@ -62,14 +62,14 @@ class LuxonFormatHelpModal extends Modal {
     contentEl.createEl('a', { href: 'https://moment.github.io/luxon/#/formatting?id=table-of-tokens', text: 'Luxon Formatting Reference' });
 
     contentEl.createEl('p', { text: 'For durations the only tokens that are supported are for days, hours, minutes and seconds:' });
-    luxonList.createEl('li', { text: '{remaining(format)} - Format remaining time' });
-    luxonList.createEl('li', { text: '{elapsed(format)} - Format elapsed time' });
-    luxonList.createEl('li', { text: '{total(format)} - Format total duration' });
+    luxonList.createEl('li', { text: '{remaining:format} - Format remaining time' });
+    luxonList.createEl('li', { text: '{elapsed:format} - Format elapsed time' });
+    luxonList.createEl('li', { text: '{total:format} - Format total duration' });
 
     contentEl.createEl('h3', { text: 'Examples' });
     const examplesList = contentEl.createEl('ul');
     examplesList.createEl('li', { text: '{percent}% complete - {remaining} left' });
-    examplesList.createEl('li', { text: 'Started on {start(LLL d)}, ends on {end(LLL d, yyyy)}' });
+    examplesList.createEl('li', { text: 'Started on {start:LLL d}, ends on {end:LLL d, yyyy}' });
     examplesList.createEl('li', { text: '{elapsed} elapsed out of {total} total' });
 
     contentEl.createEl('h3', { text: 'Common Luxon Formats' });
@@ -109,6 +109,7 @@ class ProgressBarSettingTab extends PluginSettingTab {
     containerEl.empty();
     containerEl.createEl('h2', { text: 'Countdown To Settings' });
 
+    new Setting(containerEl).setName('Bar types').setHeading();
     new Setting(containerEl)
       .setName('Default bar type')
       .setDesc('Default type of progress bar to display')
@@ -135,28 +136,33 @@ class ProgressBarSettingTab extends PluginSettingTab {
           await this.plugin.saveSettings();
         }));
 
-    new Setting(containerEl)
-      .setName('Update in real-time')
-      .setDesc('Update progress bars according to the update interval')
-      .addToggle(toggle => toggle
-        .setValue(this.plugin.settings.defaultUpdateInRealTime)
-        .onChange(async (value) => {
-          this.plugin.settings.defaultUpdateInRealTime = value;
-          await this.plugin.saveSettings();
-        }));
+      new Setting(containerEl).setName('Real time update').setHeading();
+      new Setting(containerEl)
+        .setName('Update in real-time')
+        .setDesc('Update progress bars according to the update interval')
+        .addToggle(toggle => toggle
+          .setValue(this.plugin.settings.defaultUpdateInRealTime)
+          .onChange(async (value) => {
+            this.plugin.settings.defaultUpdateInRealTime = value;
+            await this.plugin.saveSettings();
+            this.display();
+          }));
 
-    new Setting(containerEl)
-      .setName('Update interval')
-      .setDesc('How often to update the progress bars (in seconds). This will affect performance.')
-      .addSlider(slider => slider
-        .setLimits(0.5, 20, 0.5)
-        .setValue(this.plugin.settings.defaultUpdateIntervalSeconds)
-        .setDynamicTooltip()
-        .onChange(async (value) => {
-          this.plugin.settings.defaultUpdateIntervalSeconds = value;
-          await this.plugin.saveSettings();
-        }));
+    if (this.plugin.settings.defaultUpdateInRealTime) {
+      new Setting(containerEl)
+        .setName('Update interval')
+        .setDesc('How often to update the progress bars (in seconds). This will affect performance.')
+        .addSlider(slider => slider
+          .setLimits(0.5, 20, 0.5)
+          .setValue(this.plugin.settings.defaultUpdateIntervalSeconds)
+          .setDynamicTooltip()
+          .onChange(async (value) => {
+            this.plugin.settings.defaultUpdateIntervalSeconds = value;
+            await this.plugin.saveSettings();
+          }));
+    }
 
+    new Setting(containerEl).setName('Text').setHeading();
     new Setting(containerEl)
       .setName('Default info format')
       .setDesc('Default format for the info text. Uses Luxon formatting (See format help button for a quick reference).')
@@ -174,18 +180,7 @@ class ProgressBarSettingTab extends PluginSettingTab {
           .onClick(() => {
             new LuxonFormatHelpModal(this.plugin.app).open();
           });
-      });
-
-    new Setting(containerEl)
-      .setName('Default bar color')
-      .setDesc('Default color for the progress bar')
-      .addText(text => text
-        .setPlaceholder('#4CAF50')
-        .setValue(this.plugin.settings.defaultBarColor)
-        .onChange(async (value) => {
-          this.plugin.settings.defaultBarColor = value;
-          await this.plugin.saveSettings();
-        }));
+    });
 
     new Setting(containerEl)
       .setName('Default on complete text')
@@ -198,16 +193,27 @@ class ProgressBarSettingTab extends PluginSettingTab {
           await this.plugin.saveSettings();
         }));
 
+    new Setting(containerEl).setName('Colors').setHeading();
+    new Setting(containerEl)
+      .setName('Default bar color')
+      .setDesc('Default color for the progress bar')
+      .addColorPicker(color => color
+        .setValue(this.plugin.settings.defaultBarColor)
+        .onChange(async (value) => {
+          this.plugin.settings.defaultBarColor = value;
+          await this.plugin.saveSettings();
+        }));
+
     new Setting(containerEl)
       .setName('Default trail color')
       .setDesc('Default trail color for the progress bar (the incomplete part)')
-      .addText(text => text
-        .setPlaceholder('#e0e0e0')
+      .addColorPicker(color => color
         .setValue(this.plugin.settings.defaultTrailColor)
         .onChange(async (value) => {
           this.plugin.settings.defaultTrailColor = value;
           await this.plugin.saveSettings();
         }));
+    containerEl.createEl('br');
     containerEl.createEl('i', { text: 'All settings can be overridden in the markdown code block. If stuck please refer to the ' });
     containerEl.createEl('a', { href: 'https://github.com/guicattani/countdown-to?tab=readme-ov-file#how-to-use', text: 'how to use guide' });
   }
@@ -230,10 +236,6 @@ export default class ProgressBarPlugin extends Plugin {
     this.register(() => {
       this.cleanupAllProgressBars();
     });
-  }
-
-  onunload() {
-    this.cleanupAllProgressBars();
   }
 
   async loadSettings() {
@@ -280,7 +282,7 @@ export default class ProgressBarPlugin extends Plugin {
       const params = this.parseProgressBarParams(source);
 
       el.empty();
-      const containerEl = el.createDiv({ cls: 'countdown-to-container' });
+      const containerEl = el.createDiv({ cls: ['countdown-to-plugin', 'countdown-to-container'] });
 
       const startDate = DateTime.fromISO(params.startDate);
       const endDate = DateTime.fromISO(params.endDate);

@@ -43,7 +43,7 @@ endDate: 2025-04-11T14:00:00
 type: Circle
 color: #ff5722
 trailColor: #f5f5f5
-infoFormat: {percent}% complete - {remaining} until {end(LLL d, yyyy)}
+infoFormat: {percent}% complete - {remaining} until {end:LLL d, yyyy}
 updateInRealTime: true
 updateInterval: 30
 ```
