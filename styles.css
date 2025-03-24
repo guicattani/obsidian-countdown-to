@@ -5,13 +5,13 @@
     background-color: var(--background-secondary);
 }
 
-.countdown-to-plugin .progress-bar-title {
+.countdown-to-plugin .countdown-to-title {
     font-weight: bold;
     margin-bottom: 10px;
     text-align: center;
 }
 
-.countdown-to-plugin .progress-bar-info {
+.countdown-to-plugin .countdown-to-info {
     text-align: center;
     font-size: 0.9em;
     color: var(--text-muted);
@@ -19,13 +19,13 @@
 }
 
 /* Circle, SemiCircle and Square need more height */
-.countdown-to-plugin .progress-bar-circle,
-.countdown-to-plugin .progress-bar-semicircle,
-.countdown-to-plugin .progress-bar-square {
+.countdown-to-plugin .countdown-to-circle,
+.countdown-to-plugin .countdown-to-semicircle,
+.countdown-to-plugin .countdown-to-square {
     height: 100px;
 }
 
 /* Line can stay with the default height */
-.countdown-to-plugin .progress-bar-line {
+.countdown-to-plugin .countdown-to-line {
     height: 20px;
 }

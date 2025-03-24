@@ -2,7 +2,7 @@ import { App, Plugin, PluginSettingTab, Setting, Modal } from 'obsidian';
 import { DateTime, Duration, Interval } from 'luxon';
 import * as ProgressBar from 'progressbar.js';
 
-interface ProgressBarSettings {
+interface CountdownToSettings {
   defaultBarColor: string;
   defaultTrailColor: string;
   defaultBarType: string;
@@ -13,7 +13,7 @@ interface ProgressBarSettings {
   defaultUpdateIntervalSeconds: number;
 }
 
-const DEFAULT_SETTINGS: ProgressBarSettings = {
+const DEFAULT_SETTINGS: CountdownToSettings = {
   defaultBarColor: '#4CAF50',
   defaultTrailColor: '#e0e0e0',
   defaultBarType: 'Line',
@@ -25,13 +25,13 @@ const DEFAULT_SETTINGS: ProgressBarSettings = {
 };
 
 // Minimal interface for progressbar.js instances
-interface ProgressBarJs {
+interface CountdownToJs {
   set(progress: number): void;
 }
 
-interface ProgressBarInstance {
+interface CountdownToInstace {
   element: HTMLElement;
-  bar: ProgressBarJs;
+  bar: CountdownToJs;
   infoEl: HTMLElement;
   params: string;
   updateTimer: number | null;
@@ -96,10 +96,10 @@ class LuxonFormatHelpModal extends Modal {
   }
 }
 
-class ProgressBarSettingTab extends PluginSettingTab {
-  plugin: ProgressBarPlugin;
+class CountdownToSettingTab extends PluginSettingTab {
+  plugin: CountdownToPlugin;
 
-  constructor(app: App, plugin: ProgressBarPlugin) {
+  constructor(app: App, plugin: CountdownToPlugin) {
     super(app, plugin);
     this.plugin = plugin;
   }
@@ -219,22 +219,22 @@ class ProgressBarSettingTab extends PluginSettingTab {
   }
 }
 
-export default class ProgressBarPlugin extends Plugin {
-  settings: ProgressBarSettings;
+export default class CountdownToPlugin extends Plugin {
+  settings: CountdownToSettings;
 
-  progressBars = new Map<string, ProgressBarInstance>();
+  countdownTos = new Map<string, CountdownToInstace>();
 
   async onload() {
     await this.loadSettings();
 
-    this.registerMarkdownCodeBlockProcessor('progressbar', (source, el) => {
+    this.registerMarkdownCodeBlockProcessor('countdown-to', (source, el) => {
       const id = Math.random().toString(36).substring(2, 15);
-      this.renderProgressBar(source, el, id);
+      this.renderCountdownTo(source, el, id);
     });
 
-    this.addSettingTab(new ProgressBarSettingTab(this.app, this));
+    this.addSettingTab(new CountdownToSettingTab(this.app, this));
     this.register(() => {
-      this.cleanupAllProgressBars();
+      this.cleanupAllCountdownTos();
     });
   }
 
@@ -244,42 +244,42 @@ export default class ProgressBarPlugin extends Plugin {
 
   async saveSettings() {
     await this.saveData(this.settings);
-    this.refreshAllProgressBars();
+    this.refreshAllCountdownTos();
   }
 
-  cleanupProgressBar(id: string) {
-    const progressBar = this.progressBars.get(id);
-    if (progressBar && progressBar.updateTimer) {
-      window.clearTimeout(progressBar.updateTimer);
-      this.progressBars.delete(id);
+  cleanupCountdownTo(id: string) {
+    const countdownTo = this.countdownTos.get(id);
+    if (countdownTo && countdownTo.updateTimer) {
+      window.clearTimeout(countdownTo.updateTimer);
+      this.countdownTos.delete(id);
     }
   }
 
-  cleanupAllProgressBars() {
-    this.progressBars.forEach((data) => {
+  cleanupAllCountdownTos() {
+    this.countdownTos.forEach((data) => {
       if (data.updateTimer) {
         window.clearTimeout(data.updateTimer);
       }
     });
-    this.progressBars.clear();
+    this.countdownTos.clear();
   }
 
-  refreshAllProgressBars() {
-    this.progressBars.forEach((data, id) => {
+  refreshAllCountdownTos() {
+    this.countdownTos.forEach((data, id) => {
       if (data.updateTimer) {
         window.clearTimeout(data.updateTimer);
         data.updateTimer = null;
       }
 
-      this.renderProgressBar(data.params, data.element, id);
+      this.renderCountdownTo(data.params, data.element, id);
     });
   }
 
-  renderProgressBar(source: string, el: HTMLElement, id: string) {
+  renderCountdownTo(source: string, el: HTMLElement, id: string) {
     try {
-      this.cleanupProgressBar(id);
+      this.cleanupCountdownTo(id);
 
-      const params = this.parseProgressBarParams(source);
+      const params = this.parseCountdownToParams(source);
 
       el.empty();
       const containerEl = el.createDiv({ cls: ['countdown-to-plugin', 'countdown-to-container'] });
@@ -304,11 +304,11 @@ export default class ProgressBarPlugin extends Plugin {
         return;
       }
 
-      const progressBarEl = containerEl.createDiv({ cls: 'progress-bar-element' });
+      const countdownToEl = containerEl.createDiv({ cls: 'countdown-to-element' });
       const barType = params.type || this.settings.defaultBarType;
-      progressBarEl.addClass(`progress-bar-${barType.toLowerCase()}`);
+      countdownToEl.addClass(`countdown-to-${barType.toLowerCase()}`);
 
-      const infoEl = containerEl.createDiv({ cls: 'progress-bar-info' });
+      const infoEl = containerEl.createDiv({ cls: 'countdown-to-info' });
 
       let bar;
       const barColor = params.color || this.settings.defaultBarColor;
@@ -322,26 +322,26 @@ export default class ProgressBarPlugin extends Plugin {
 
       switch (barType.toLowerCase()) {
         case 'circle':
-          bar = new ProgressBar.Circle(progressBarEl, {
+          bar = new ProgressBar.Circle(countdownToEl, {
             ...commonOptions,
             svgStyle: { width: '100%', height: '100%' },
           });
           break;
         case 'semicircle':
-          bar = new ProgressBar.SemiCircle(progressBarEl, {
+          bar = new ProgressBar.SemiCircle(countdownToEl, {
             ...commonOptions,
             svgStyle: { width: '100%', height: '100%' },
           });
           break;
         case 'square':
-          bar = new ProgressBar.Square(progressBarEl, {
+          bar = new ProgressBar.Square(countdownToEl, {
             ...commonOptions,
             svgStyle: { width: '100%', height: '100%' },
           });
           break;
         case 'line':
         default:
-          bar = new ProgressBar.Line(progressBarEl, {
+          bar = new ProgressBar.Line(countdownToEl, {
             ...commonOptions,
             svgStyle: { width: '100%', height: '100%' },
           });
@@ -349,12 +349,12 @@ export default class ProgressBarPlugin extends Plugin {
       }
 
       if (params.title) {
-        const titleEl = containerEl.createDiv({ cls: 'progress-bar-title' });
+        const titleEl = containerEl.createDiv({ cls: 'countdown-to-title' });
         titleEl.setText(params.title);
         containerEl.prepend(titleEl);
       }
 
-      this.progressBars.set(id, {
+      this.countdownTos.set(id, {
         element: el,
         bar: bar,
         infoEl: infoEl,
@@ -362,7 +362,7 @@ export default class ProgressBarPlugin extends Plugin {
         updateTimer: null,
       });
 
-      this.updateProgressBar(id, startDate, endDate);
+      this.updateCountdownTo(id, startDate, endDate);
 
       const updateInRealTime = params.updateInRealTime !== undefined ?
         params.updateInRealTime === 'true' :
@@ -377,35 +377,35 @@ export default class ProgressBarPlugin extends Plugin {
           this.scheduleUpdate(id, startDate, endDate, updateInterval);
         }, updateInterval * 1000);
 
-        const progressBarInstance = this.progressBars.get(id);
-        if (progressBarInstance) {
-          progressBarInstance.updateTimer = timer;
+        const CountdownToInstace = this.countdownTos.get(id);
+        if (CountdownToInstace) {
+          CountdownToInstace.updateTimer = timer;
         }
       }
 
     } catch (error) {
-      el.setText('Error rendering progress bar: ' + error.message);
+      el.setText('Error rendering countdown to: ' + error.message);
     }
   }
 
   scheduleUpdate(id: string, startDate: DateTime, endDate: DateTime, defaultUpdateIntervalSeconds: number) {
-    const progressBar = this.progressBars.get(id);
-    if (!progressBar) return;
+    const countdownTo = this.countdownTos.get(id);
+    if (!countdownTo) return;
 
-    this.updateProgressBar(id, startDate, endDate);
+    this.updateCountdownTo(id, startDate, endDate);
 
     const timer = window.setTimeout(() => {
       this.scheduleUpdate(id, startDate, endDate, defaultUpdateIntervalSeconds);
     }, defaultUpdateIntervalSeconds * 1000);
 
-    progressBar.updateTimer = timer;
+    countdownTo.updateTimer = timer;
   }
 
-  updateProgressBar(id: string, startDate: DateTime, endDate: DateTime) {
-    const progressBar = this.progressBars.get(id);
-    if (!progressBar) return;
+  updateCountdownTo(id: string, startDate: DateTime, endDate: DateTime) {
+    const countdownTo = this.countdownTos.get(id);
+    if (!countdownTo) return;
 
-    const params = this.parseProgressBarParams(progressBar.params);
+    const params = this.parseCountdownToParams(countdownTo.params);
     const currentDate = DateTime.now();
 
     const totalInterval = Interval.fromDateTimes(startDate, endDate);
@@ -420,13 +420,13 @@ export default class ProgressBarPlugin extends Plugin {
     const infoFormat = params.infoFormat || this.settings.defaultInfoFormat;
 
     if (progressType.toLowerCase() === 'countdown') {
-      progressBar.bar.set(1.0 - progress);
+      countdownTo.bar.set(1.0 - progress);
     } else {
-      progressBar.bar.set(Math.floor(progress * 100) / 100);
+      countdownTo.bar.set(Math.floor(progress * 100) / 100);
     }
 
     if (progress >= 1) {
-      progressBar.infoEl.setText(
+      countdownTo.infoEl.setText(
         onCompleteText.replace(/{title}/g, params.title || ''),
       );
     } else {
@@ -455,11 +455,11 @@ export default class ProgressBarPlugin extends Plugin {
         .replace(/{elapsed}/g, this.formatDuration(elapsedDuration))
         .replace(/{total}/g, this.formatDuration(totalDuration));
 
-      progressBar.infoEl.setText(infoText);
+      countdownTo.infoEl.setText(infoText);
     }
   }
 
-  parseProgressBarParams(source: string): Record<string, string> {
+  parseCountdownToParams(source: string): Record<string, string> {
     const params: Record<string, string> = {};
     const lines = source.trim().split('\n');
 
