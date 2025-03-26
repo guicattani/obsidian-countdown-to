@@ -28,6 +28,18 @@ export class CountdownToMarkdownRenderChild extends MarkdownRenderChild {
         this.display.bind(this)
       )
     );
+
+    this.register(() => {
+      this.cleanupCountdownTo();
+    });
+  }
+
+  cleanupCountdownTo() {
+    const countdownTo = this.plugin.countdownTos.get(this.id);
+    if (countdownTo && countdownTo.updateTimer) {
+      window.clearInterval(countdownTo.updateTimer);
+      this.plugin.countdownTos.delete(this.id);
+    }
   }
 
   display() {
@@ -125,15 +137,7 @@ export class CountdownToMarkdownRenderChild extends MarkdownRenderChild {
         const updateInterval = params.updateInterval ?
           parseInt(params.updateInterval, 10) :
           this.plugin.settings.defaultUpdateIntervalSeconds;
-
-        const timer = window.setTimeout(() => {
-          this.scheduleUpdate(this.id, startDate, endDate, updateInterval);
-        }, updateInterval * 1000);
-
-        const CountdownToInstace = this.plugin.countdownTos.get(this.id);
-        if (CountdownToInstace) {
-          CountdownToInstace.updateTimer = timer;
-        }
+        this.scheduleUpdate(this.id, startDate, endDate, updateInterval);
       }
 
     } catch (error) {
@@ -145,10 +149,8 @@ export class CountdownToMarkdownRenderChild extends MarkdownRenderChild {
     const countdownTo = this.plugin.countdownTos.get(id);
     if (!countdownTo) return;
 
-    this.updateCountdownTo(id, startDate, endDate);
-
-    const timer = window.setTimeout(() => {
-      this.scheduleUpdate(id, startDate, endDate, defaultUpdateIntervalSeconds);
+    const timer = window.setInterval(() => {
+      this.updateCountdownTo(id, startDate, endDate);
     }, defaultUpdateIntervalSeconds * 1000);
 
     countdownTo.updateTimer = timer;

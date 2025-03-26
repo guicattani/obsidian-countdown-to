@@ -32,9 +32,6 @@ export default class CountdownToPlugin extends Plugin {
     });
 
     this.addSettingTab(new CountdownToSettingTab(this.app, this));
-    this.register(() => {
-      this.cleanupAllCountdownTos();
-    });
   }
 
   async loadSettings() {
@@ -43,22 +40,5 @@ export default class CountdownToPlugin extends Plugin {
 
   async saveSettings() {
     await this.saveData(this.settings);
-  }
-
-  cleanupCountdownTo(id: string) {
-    const countdownTo = this.countdownTos.get(id);
-    if (countdownTo && countdownTo.updateTimer) {
-      window.clearTimeout(countdownTo.updateTimer);
-      this.countdownTos.delete(id);
-    }
-  }
-
-  cleanupAllCountdownTos() {
-    this.countdownTos.forEach((data) => {
-      if (data.updateTimer) {
-        window.clearTimeout(data.updateTimer);
-      }
-    });
-    this.countdownTos.clear();
   }
 }
