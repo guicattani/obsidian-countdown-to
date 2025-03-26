@@ -23,7 +23,10 @@ export default class CountdownToPlugin extends Plugin {
     await this.loadSettings();
 
     this.registerMarkdownCodeBlockProcessor('countdown-to', (source, el, ctx) => {
-      const id = Math.random().toString(36).substring(2, 15);
+      let id = '';
+      while (this.countdownTos.has(id)) {
+        id = Math.random().toString(36).substring(2, 15);
+      }
 
       ctx.addChild(new CountdownToMarkdownRenderChild(this, source, el, id));
     });
