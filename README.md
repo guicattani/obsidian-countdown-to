@@ -33,17 +33,17 @@ Track time until important deadlines, events, or milestones with visual progress
 
 ## How to Use
 
-Create a countdown progress bar by adding a code block with the `progressbar` language identifier:
+Create a countdown progress bar by adding a code block with the `countdown-to` language identifier:
 
 ````markdown
-```progressbar
+```countdown-to
 title: Project Deadline
 startDate: 2025-03-12T08:00:00
 endDate: 2025-04-11T14:00:00
 type: Circle
 color: #ff5722
 trailColor: #f5f5f5
-infoFormat: {percent}% complete - {remaining} until {end(LLL d, yyyy)}
+infoFormat: {percent}% complete - {remaining} until {end:LLL d, yyyy}
 updateInRealTime: true
 updateInterval: 30
 ```
