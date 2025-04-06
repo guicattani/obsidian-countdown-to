@@ -39,7 +39,6 @@ export class CountdownToSettingTab extends PluginSettingTab {
   display(): void {
     const { containerEl } = this;
     containerEl.empty();
-    containerEl.createEl('h2', { text: 'Countdown To Settings' });
 
     new Setting(containerEl).setName('Bar types').setHeading();
     new Setting(containerEl)
