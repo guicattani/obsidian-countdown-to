@@ -17,7 +17,7 @@ export class LuxonFormatHelpModal extends Modal {
     placeholdersList.createEl('li', { text: '{total} - Total duration (in days)' });
 
     contentEl.createEl('h3', { text: 'Formatting' });
-    contentEl.createEl('a', { href: 'https://moment.github.io/luxon/#/formatting?id=table-of-tokens', text: 'Luxon Formatting Reference' });
+    contentEl.createEl('a', { href: 'https://moment.github.io/luxon/#/formatting?id=table-of-tokens', text: 'Luxon formatting reference' });
 
     contentEl.createEl('h4', { text: 'Date formatting' });
     contentEl.createEl('p', { text: 'You can use Luxon formatting for dates (replace *format* with the format you want):' });
@@ -45,7 +45,7 @@ export class LuxonFormatHelpModal extends Modal {
     durationExamplesList.createEl('li', { text: '{percent}% complete - {remaining} left' });
     durationExamplesList.createEl('li', { text: '{elapsed} elapsed out of {total} total' });
 
-    contentEl.createEl('h3', { text: 'Common Luxon Formats' });
+    contentEl.createEl('h3', { text: 'Common Luxon formats' });
     const formatsTable = contentEl.createEl('table');
     const headerRow = formatsTable.createEl('tr');
     headerRow.createEl('th', { text: 'Format' });

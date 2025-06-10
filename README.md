@@ -40,7 +40,7 @@ Create a countdown progress bar by adding a code block with the `countdown-to` l
 title: Project Deadline
 startDate: 2025-03-12T08:00:00
 endDate: 2025-04-11T14:00:00
-type: Circle
+type: circle
 color: #ff5722
 trailColor: #f5f5f5
 infoFormat: {percent}% complete - {remaining} until {end:LLL d, yyyy}
