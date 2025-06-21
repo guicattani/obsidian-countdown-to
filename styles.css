@@ -3,6 +3,11 @@
     padding: 10px;
     border-radius: 5px;
     background-color: var(--background-secondary);
+    transition: background-color 1.0s ease;
+}
+
+.countdown-to-plugin.countdown-to-container.countdown-to-upcoming {
+    background-color: var(--countdown-to-upcoming-bg, var(--background-secondary, #e3e3e3));
 }
 
 .countdown-to-plugin .countdown-to-title {

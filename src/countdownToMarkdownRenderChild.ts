@@ -57,6 +57,16 @@ export class CountdownToMarkdownRenderChild extends MarkdownRenderChild {
         return;
       }
 
+      // Apply upcoming background color if start date is in the future
+      const isUpcoming = startDate > DateTime.now();
+      if (isUpcoming) {
+        containerEl.addClass('countdown-to-upcoming');
+        document.documentElement.style.setProperty(
+          '--countdown-to-upcoming-bg',
+          this.plugin.settings.defaultUpcomingBackgroundColor
+        );
+      }
+
       const countdownToEl = containerEl.createDiv({ cls: 'countdown-to-element' });
       const barType = params.type || this.plugin.settings.defaultBarType;
       countdownToEl.addClass(`countdown-to-${barType.toLowerCase()}`);
@@ -113,6 +123,7 @@ export class CountdownToMarkdownRenderChild extends MarkdownRenderChild {
         infoEl: infoEl,
         params: this.source,
         updateTimer: null,
+        startedAsUpcoming: isUpcoming,
       });
 
       if (startDate > DateTime.now()) {
@@ -164,6 +175,13 @@ export class CountdownToMarkdownRenderChild extends MarkdownRenderChild {
 
     const params = this.parseCountdownToParams(countdownTo.params);
     const currentDate = DateTime.now();
+
+    if (countdownTo.startedAsUpcoming) {
+      if (!upcoming) {
+        const containerEl = countdownTo.element.querySelector('.countdown-to-container') as HTMLElement;
+        containerEl.removeClass('countdown-to-upcoming');
+      }
+    }
 
     const totalInterval = Interval.fromDateTimes(startDate, endDate);
     const elapsedInterval = Interval.fromDateTimes(startDate, currentDate);
