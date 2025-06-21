@@ -9,6 +9,7 @@ export interface CountdownToSettings {
   defaultProgressType: string;
   defaultOnCompleteText: string;
   defaultInfoFormat: string;
+  defaultInfoFormatUpcoming: string;
   defaultUpdateInRealTime: boolean;
   defaultUpdateIntervalSeconds: number;
 }
@@ -20,6 +21,7 @@ export const DEFAULT_SETTINGS: CountdownToSettings = {
   defaultProgressType: 'Forward',
   defaultOnCompleteText: '{title} is done!',
   defaultInfoFormat: '{percent}% - {remaining} remaining',
+  defaultInfoFormatUpcoming: '{title} is coming up in {remaining}!',
   defaultUpdateInRealTime: false,
   defaultUpdateIntervalSeconds: 1,
 };
@@ -114,6 +116,28 @@ export class CountdownToSettingTab extends PluginSettingTab {
         .setValue(this.plugin.settings.defaultInfoFormat)
         .onChange(async (value) => {
           this.plugin.settings.defaultInfoFormat = value;
+          await this.plugin.saveSettings();
+            this.app.workspace.trigger(
+              "countdown-to:rerender"
+            );
+        }))
+      .addExtraButton(button => {
+        button
+          .setIcon('help')
+          .setTooltip('Show format help')
+          .onClick(() => {
+            new LuxonFormatHelpModal(this.plugin.app).open();
+          });
+    });
+
+    new Setting(containerEl)
+      .setName('Default info format upcoming')
+      .setDesc('Default format for the info text when the countdown is upcoming (start date in the future).')
+      .addTextArea(text => text
+        .setPlaceholder('{title} is coming up in {remaining}!')
+        .setValue(this.plugin.settings.defaultInfoFormatUpcoming)
+        .onChange(async (value) => {
+          this.plugin.settings.defaultInfoFormatUpcoming = value;
           await this.plugin.saveSettings();
             this.app.workspace.trigger(
               "countdown-to:rerender"

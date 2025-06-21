@@ -2,14 +2,13 @@ import { Plugin } from 'obsidian';
 import { CountdownToSettings, CountdownToSettingTab, DEFAULT_SETTINGS } from './settings';
 import { CountdownToMarkdownRenderChild } from './countdownToMarkdownRenderChild';
 
-// Minimal interface for progressbar.js instances
-interface CountdownToJs {
+interface ProgressBarJS {
   set(progress: number): void;
 }
 
-interface CountdownToInstace {
+interface CountdownToInstance {
   element: HTMLElement;
-  bar: CountdownToJs;
+  bar: ProgressBarJS;
   infoEl: HTMLElement;
   params: string;
   updateTimer: number | null;
@@ -17,7 +16,7 @@ interface CountdownToInstace {
 
 export default class CountdownToPlugin extends Plugin {
   settings: CountdownToSettings;
-  countdownTos = new Map<string, CountdownToInstace>();
+  countdownTos = new Map<string, CountdownToInstance>();
 
   async onload() {
     await this.loadSettings();

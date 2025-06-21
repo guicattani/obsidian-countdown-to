@@ -35,24 +35,33 @@ Track time until important deadlines, events, or milestones with visual progress
 
 Create a countdown progress bar by adding a code block with the `countdown-to` language identifier:
 
-````markdown
 ```countdown-to
 title: Project Deadline
-startDate: 2025-03-12T08:00:00
-endDate: 2025-04-11T14:00:00
+startDate: 2025-03-12
+startTime: 08:00:00
+endDate: 2025-04-11
+endTime: 14:00:00
 type: circle
 color: #ff5722
 trailColor: #f5f5f5
 infoFormat: {percent}% complete - {remaining} until {end:LLL d, yyyy}
 updateInRealTime: true
-updateInterval: 30
+updateIntervalInSeconds: 30
 ```
-````
 
 ### Required Parameters
 
-- `endDate`: The target date to count down to (ISO format: YYYY-MM-DDTHH:MM:SS)
-- `startDate`: Start date for the progress calculation, needs to be now or in the past (ISO format: YYYY-MM-DDTHH:MM:SS)
+If no startDate and endDate is provided the countdown will assume the current day. So at the very least the widget requires a start time and end time. If that is the case the countdown will run daily.
+
+- `startDate`: Start date for the progress calculation (format: YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS)
+- `startTime`: Start time for the progress calculation (format: HH:MM:SS, optional - defaults to 00:00:00)
+- `endDate`: The target date to count down to (format: YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS)
+- `endTime`: The target time to count down to (format: HH:MM:SS, optional - defaults to 00:00:00)
+
+**Note**: You can use either:
+- Separate date and time parameters: `startDate: 2025-01-01` + `startTime: 09:00:00`
+- Combined ISO format: `startDate: 2025-01-01T09:00:00` startTime will be ignored. This logic is the same for endDate and endTime
+- The startDate or startTime can be in the future, and the info message will reflect that it is upcoming. The message for upcoming countdowns can be customized in the settings under `Default info format upcoming`.
 
 ### Optional Parameters
 
@@ -64,7 +73,7 @@ updateInterval: 30
 - `onCompleteText`: Text to display when the countdown is complete
 - `infoFormat`: Custom format for the information text
 - `updateInRealTime`: Whether to update the progress bar in real-time (`true`/`false`)
-- `updateInterval`: How often to update the progress bar (in seconds)
+- `updateIntervalInSeconds`: How often to update the progress bar
 
 ## Formatting Options
 
@@ -106,6 +115,9 @@ You can configure default settings for all progress bars in the plugin settings:
 3. Customize the default bar type, colors, progress type, update interval, and info format
 
 All settings can be overridden in individual progress bar code blocks.
+
+## CSS Customization
+A custom CSS snippet can be created in your `./.obsidian/snippets` and the classes on https://github.com/guicattani/obsidian-countdown-to/blob/main/styles.css can be overriden.
 
 ## Performance Considerations
 
