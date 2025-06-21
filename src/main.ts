@@ -12,6 +12,7 @@ interface CountdownToInstance {
   infoEl: HTMLElement;
   params: string;
   updateTimer: number | null;
+  startedAsUpcoming: boolean;
 }
 
 export default class CountdownToPlugin extends Plugin {
