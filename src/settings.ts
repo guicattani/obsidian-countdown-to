@@ -18,7 +18,7 @@ export interface CountdownToSettings {
 export const DEFAULT_SETTINGS: CountdownToSettings = {
   defaultBarColor: '#4CAF50',
   defaultTrailColor: '#e0e0e0',
-  defaultUpcomingBackgroundColor: '#e3e3e3',
+  defaultUpcomingBackgroundColor: '#gggggg', // invalid color so that we know the user didn't set it
   defaultBarType: 'Line',
   defaultProgressType: 'Forward',
   defaultOnCompleteText: '{title} is done!',
@@ -202,7 +202,7 @@ export class CountdownToSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName('Default upcoming background color')
-      .setDesc('Default background color for countdowns that are upcoming (start date in the future)')
+      .setDesc('Default background color for countdowns that are upcoming (start date in the future). Needs manual reload of notes to take effect.')
       .addColorPicker(color => color
         .setValue(this.plugin.settings.defaultUpcomingBackgroundColor)
         .onChange(async (value) => {

@@ -61,6 +61,7 @@ export class CountdownToMarkdownRenderChild extends MarkdownRenderChild {
       const isUpcoming = startDate > DateTime.now();
       if (isUpcoming) {
         containerEl.addClass('countdown-to-upcoming');
+
         document.documentElement.style.setProperty(
           '--countdown-to-upcoming-bg',
           this.plugin.settings.defaultUpcomingBackgroundColor
@@ -113,7 +114,12 @@ export class CountdownToMarkdownRenderChild extends MarkdownRenderChild {
 
       if (params.title) {
         const titleEl = containerEl.createDiv({ cls: 'countdown-to-title' });
-        titleEl.setText(params.title);
+        const titleLines = params.title.split('\\n');
+        titleLines.forEach(line => {
+          const lineEl = titleEl.createDiv({ cls: 'countdown-to-title-line' });
+          lineEl.setText(line);
+        });
+
         containerEl.prepend(titleEl);
       }
 
@@ -149,6 +155,7 @@ export class CountdownToMarkdownRenderChild extends MarkdownRenderChild {
       }
 
     } catch (error) {
+      this.containerEl.empty();
       const containerEl = this.containerEl.createDiv({ cls: ['countdown-to-plugin', 'countdown-to-container'] });
       containerEl.setText('Error rendering countdown to: ' + error.message);
     }
@@ -246,7 +253,12 @@ export class CountdownToMarkdownRenderChild extends MarkdownRenderChild {
         infoText = infoText.replace(/{total}/g, this.formatDuration(totalDuration))
       }
 
-      countdownTo.infoEl.setText(infoText);
+      countdownTo.infoEl.empty();
+      const infoLines = infoText.split('\\n');
+      infoLines.forEach(line => {
+        const lineEl = countdownTo.infoEl.createDiv({ cls: 'countdown-to-info-line' });
+        lineEl.setText(line);
+      });
     }
   }
 
