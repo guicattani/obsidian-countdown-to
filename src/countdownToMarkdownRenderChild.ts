@@ -49,24 +49,23 @@ export class CountdownToMarkdownRenderChild extends MarkdownRenderChild {
       this.containerEl.empty();
       const containerEl = this.containerEl.createDiv({ cls: ['countdown-to-plugin', 'countdown-to-container'] });
 
-      const startDate = DateTime.fromISO(params.startDate);
-      const endDate = DateTime.fromISO(params.endDate);
-
-      if (!startDate.isValid) {
-        containerEl.setText('Invalid start date format. ' +
-                            'Please use ISO + time format (YYYY-MM-DDTHH:MM:SS).');
-        return;
-      }
-
-      if (!endDate.isValid) {
-        containerEl.setText('Invalid end date format. ' +
-                            'Please use ISO + time format (YYYY-MM-DDTHH:MM:SS).');
-        return;
-      }
+      const startDate = this.constructDateTime(params.startDate, params.startTime, 'start');
+      const endDate = this.constructDateTime(params.endDate, params.endTime, 'end');
 
       if (endDate < startDate) {
-        containerEl.setText('End date must be after start date.');
+        containerEl.setText('End date/time must be after start date/time.');
         return;
+      }
+
+      // Apply upcoming background color if start date is in the future
+      const isUpcoming = startDate > DateTime.now();
+      if (isUpcoming) {
+        containerEl.addClass('countdown-to-upcoming');
+
+        document.documentElement.style.setProperty(
+          '--countdown-to-upcoming-bg',
+          this.plugin.settings.defaultUpcomingBackgroundColor
+        );
       }
 
       const countdownToEl = containerEl.createDiv({ cls: 'countdown-to-element' });
@@ -115,7 +114,12 @@ export class CountdownToMarkdownRenderChild extends MarkdownRenderChild {
 
       if (params.title) {
         const titleEl = containerEl.createDiv({ cls: 'countdown-to-title' });
-        titleEl.setText(params.title);
+        const titleLines = params.title.split('\\n');
+        titleLines.forEach(line => {
+          const lineEl = titleEl.createDiv({ cls: 'countdown-to-title-line' });
+          lineEl.setText(line);
+        });
+
         containerEl.prepend(titleEl);
       }
 
@@ -125,23 +129,35 @@ export class CountdownToMarkdownRenderChild extends MarkdownRenderChild {
         infoEl: infoEl,
         params: this.source,
         updateTimer: null,
+        startedAsUpcoming: isUpcoming,
       });
 
-      this.updateCountdownTo(this.id, startDate, endDate);
+      if (startDate > DateTime.now()) {
+        this.updateCountdownTo(this.id, DateTime.now(), startDate, true);
+      } else {
+        this.updateCountdownTo(this.id, startDate, endDate, false);
+      }
+
 
       const updateInRealTime = params.updateInRealTime !== undefined ?
         params.updateInRealTime === 'true' :
         this.plugin.settings.defaultUpdateInRealTime;
 
       if (updateInRealTime) {
-        const updateInterval = params.updateInterval ?
-          parseInt(params.updateInterval, 10) :
+        if (params.updateInterval && !params.updateIntervalInSeconds) {
+          params.updateIntervalInSeconds = params.updateInterval;
+        }
+
+        const updateIntervalInSeconds = params.updateIntervalInSeconds ?
+          parseInt(params.updateIntervalInSeconds, 10) :
           this.plugin.settings.defaultUpdateIntervalSeconds;
-        this.scheduleUpdate(this.id, startDate, endDate, updateInterval);
+        this.scheduleUpdate(this.id, startDate, endDate, updateIntervalInSeconds);
       }
 
     } catch (error) {
-      this.containerEl.setText('Error rendering countdown to: ' + error.message);
+      this.containerEl.empty();
+      const containerEl = this.containerEl.createDiv({ cls: ['countdown-to-plugin', 'countdown-to-container'] });
+      containerEl.setText('Error rendering countdown to: ' + error.message);
     }
   }
 
@@ -150,18 +166,29 @@ export class CountdownToMarkdownRenderChild extends MarkdownRenderChild {
     if (!countdownTo) return;
 
     const timer = window.setInterval(() => {
-      this.updateCountdownTo(id, startDate, endDate);
+      if (startDate > DateTime.now()) {
+        this.updateCountdownTo(this.id, DateTime.now(), startDate, true);
+      } else {
+        this.updateCountdownTo(this.id, startDate, endDate, false);
+      }
     }, defaultUpdateIntervalSeconds * 1000);
 
     countdownTo.updateTimer = timer;
   }
 
-  updateCountdownTo(id: string, startDate: DateTime, endDate: DateTime) {
+  updateCountdownTo(id: string, startDate: DateTime, endDate: DateTime, upcoming: boolean = false) {
     const countdownTo = this.plugin.countdownTos.get(id);
     if (!countdownTo) return;
 
     const params = this.parseCountdownToParams(countdownTo.params);
     const currentDate = DateTime.now();
+
+    if (countdownTo.startedAsUpcoming) {
+      if (!upcoming) {
+        const containerEl = countdownTo.element.querySelector('.countdown-to-container') as HTMLElement;
+        containerEl.removeClass('countdown-to-upcoming');
+      }
+    }
 
     const totalInterval = Interval.fromDateTimes(startDate, endDate);
     const elapsedInterval = Interval.fromDateTimes(startDate, currentDate);
@@ -173,6 +200,7 @@ export class CountdownToMarkdownRenderChild extends MarkdownRenderChild {
     const progressType = params.progressType || this.plugin.settings.defaultProgressType;
     const onCompleteText = params.onCompleteText || this.plugin.settings.defaultOnCompleteText;
     const infoFormat = params.infoFormat || this.plugin.settings.defaultInfoFormat;
+    const infoFormatUpcoming = params.infoFormatUpcoming || this.plugin.settings.defaultInfoFormatUpcoming;
 
     if (progressType.toLowerCase() === 'countdown') {
       countdownTo.bar.set(1.0 - progress);
@@ -185,7 +213,13 @@ export class CountdownToMarkdownRenderChild extends MarkdownRenderChild {
         onCompleteText.replace(/{title}/g, params.title || ''),
       );
     } else {
-      let infoText = infoFormat;
+      let infoText;
+
+      if (upcoming) {
+        infoText = infoFormatUpcoming;
+      } else {
+        infoText = infoFormat;
+      }
 
       const remainingInterval = Interval.fromDateTimes(currentDate, endDate);
       const remainingDuration = remainingInterval.toDuration(['days', 'hours', 'minutes', 'seconds']);
@@ -193,6 +227,7 @@ export class CountdownToMarkdownRenderChild extends MarkdownRenderChild {
       const elapsedDuration = elapsedInterval.toDuration(['days', 'hours', 'minutes', 'seconds']);
 
       const totalDuration = totalInterval.toDuration(['days', 'hours', 'minutes', 'seconds']);
+
       infoText = infoText
         .replace(/{start:(.*?)}/g, (_match: string, format: string) => startDate.toFormat(format))
         .replace(/{end:(.*?)}/g, (_match: string, format: string) => endDate.toFormat(format))
@@ -206,11 +241,24 @@ export class CountdownToMarkdownRenderChild extends MarkdownRenderChild {
         .replace(/{start}/g, startDate.toISODate() || '')
         .replace(/{end}/g, endDate.toISODate() || '')
         .replace(/{current}/g, currentDate.toISODate() || '')
-        .replace(/{remaining}/g, this.formatDuration(remainingDuration))
-        .replace(/{elapsed}/g, this.formatDuration(elapsedDuration))
-        .replace(/{total}/g, this.formatDuration(totalDuration));
+        .replace(/{title}/g, params.title || '');
 
-      countdownTo.infoEl.setText(infoText);
+      if (infoText.includes('{remaining}')) {
+        infoText = infoText.replace(/{remaining}/g, this.formatDuration(remainingDuration))
+      }
+      if (infoText.includes('{elapsed}')) {
+        infoText = infoText.replace(/{elapsed}/g, this.formatDuration(elapsedDuration))
+      }
+      if (infoText.includes('{total}')) {
+        infoText = infoText.replace(/{total}/g, this.formatDuration(totalDuration))
+      }
+
+      countdownTo.infoEl.empty();
+      const infoLines = infoText.split('\\n');
+      infoLines.forEach(line => {
+        const lineEl = countdownTo.infoEl.createDiv({ cls: 'countdown-to-info-line' });
+        lineEl.setText(line);
+      });
     }
   }
 
@@ -229,36 +277,72 @@ export class CountdownToMarkdownRenderChild extends MarkdownRenderChild {
       }
     });
 
-    if (!params.startDate) {
-      throw new Error('Start date is required');
+    if (!params.startDate && !params.startTime) {
+      throw new Error('Start date or start time is required');
     }
 
-    if (DateTime.fromISO(params.startDate) > DateTime.now()) {
-      throw new Error('Start date must be now or in the past');
+    if (!params.endDate && !params.endTime) {
+      throw new Error('End date or end time is required');
     }
 
-    if (!params.endDate) {
-      throw new Error('End date is required');
+    if (params.startTime && !params.startDate && params.endDate && !params.endTime ||
+        params.startTime && !params.startDate && params.endDate && params.endTime) {
+      throw new Error('Start time with no start date requires an end time with no end date');
     }
+
+    if (params.startDate === params.endDate && params.startTime === params.endTime) {
+      throw new Error('Start date and end date cannot be the same');
+    }
+
 
     return params;
   }
 
   formatDuration(duration: Duration): string {
-    const days = Math.ceil(duration.as('days'));
-    const hours = Math.ceil(duration.as('hours') % 24);
-    const minutes = Math.ceil(duration.as('minutes') % 60);
-    const seconds = Math.ceil(duration.as('seconds') % 60);
+    const days = Math.floor(duration.as('days'));
+    const hours = Math.floor(duration.as('hours') % 24);
+    const minutes = Math.floor(duration.as('minutes') % 60);
+    const seconds = Math.floor(duration.as('seconds') % 60);
 
     if (days > 0) {
       return `${days} day${days > 1 ? 's' : ''}`;
     } else if (hours > 0) {
-      return `${hours} hour${hours > 1 ? 's' : ''}`;
+      return `${hours} hour${hours > 1 ? 's' : ''} ` +
+             `${minutes} minute${minutes > 1 ? 's' : ''} ` +
+             `${seconds} second${seconds > 1 ? 's' : ''}`;
     } else if (minutes > 0) {
-      return `${minutes} minute${minutes > 1 ? 's' : ''}`;
+      return `${minutes} minute${minutes > 1 ? 's' : ''} ` +
+             `${seconds} second${seconds > 1 ? 's' : ''}`;
     } else {
       return `${seconds} second${seconds > 1 ? 's' : ''}`;
     }
+  }
+
+  constructDateTime(date: string, time: string, type: string): DateTime {
+    const isoDateTimeRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/;
+
+    if (isoDateTimeRegex.test(date)) {
+      const dateTime = DateTime.fromISO(date);
+      return dateTime;
+    }
+
+    let dateToUse = date || DateTime.now().toFormat('yyyy-MM-dd');
+    let timeToUse = time || '00:00:00';
+
+    if (timeToUse && !timeToUse.includes(':')) {
+      timeToUse = `${timeToUse}:00`;
+    } else if (timeToUse && timeToUse.split(':').length === 2) {
+      timeToUse = `${timeToUse}:00`;
+    }
+
+    const dateTimeString = `${dateToUse}T${timeToUse}`;
+    const dateTime = DateTime.fromISO(dateTimeString);
+
+    if (!dateTime.isValid) {
+      throw new Error(`Invalid ${type} date or time format: ${dateTimeString}`);
+    }
+
+    return dateTime;
   }
 
 }
