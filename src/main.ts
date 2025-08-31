@@ -28,7 +28,7 @@ export default class CountdownToPlugin extends Plugin {
         id = Math.random().toString(36).substring(2, 15);
       }
 
-      ctx.addChild(new CountdownToMarkdownRenderChild(this, source, el, id));
+      ctx.addChild(new CountdownToMarkdownRenderChild(this, source, el, id, ctx));
     });
 
     this.addSettingTab(new CountdownToSettingTab(this.app, this));
