@@ -34,7 +34,7 @@ Track time until important deadlines, events, or milestones with visual progress
 ## How to Use
 
 Create a countdown progress bar by adding a code block with the `countdown-to` language identifier:
-
+````
 ```countdown-to
 title: Project Deadline
 startDate: 2025-03-12
@@ -48,7 +48,7 @@ infoFormat: {percent}% complete - {remaining} until {end:LLL d, yyyy}
 updateInRealTime: true
 updateIntervalInSeconds: 30
 ```
-
+````
 ### Required Parameters
 
 If no startDate and endDate is provided the countdown will assume the current day. So at the very least the widget requires a start time and end time. If that is the case the countdown will run daily.
@@ -105,6 +105,34 @@ For example:
 - `{end:EEEE, MMMM d, yyyy}` displays as "Thursday, April 11, 2025"
 
 See the [Luxon formatting reference](https://moment.github.io/luxon/#/formatting?id=table-of-tokens) for all available format tokens.
+
+### Using parameters
+Countdown To is compatible with Obsidian Parameters. To use them you use the same parameters explained in #How to Use but have them prefixed with `countdown-`, for example:
+```
+---
+countdown-startDate: 2025-08-31
+countdown-startTime: 19:00
+countdown-endDate: 2025-09-15
+countdown-endTime: 19:00
+countdown-title: Property Title Test
+countdown-color: "#ff5722"
+countdown-type: Line
+countdown-trailColor: "#ff0022"
+countdown-progressType: progress
+countdown-updateInRealTime: true
+countdown-updateIntervalInSeconds: 10
+countdown-infoFormat: "{percent}% complete - {remaining} until {end:LLL d, yyyy}"
+countdown-infoFormatUpcoming: Upcoming {title}
+countdown-onCompleteText: Completed {title}
+---
+```
+These parameters can be overriden in a `countdown-to` but they will now be the default value for the file and they don't need to be written in a `countdown-to` block.
+
+````
+  ```countdown-to
+  ```
+````
+Will now work even with no `startDate`
 
 ## Configuration
 

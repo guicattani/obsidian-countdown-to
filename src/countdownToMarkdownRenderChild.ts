@@ -1,4 +1,4 @@
-import { MarkdownRenderChild } from "obsidian";
+import { MarkdownRenderChild, MarkdownPostProcessorContext, TFile } from "obsidian";
 import CountdownToPlugin from "./main";
 
 import { DateTime, Duration, Interval } from 'luxon';
@@ -8,16 +8,19 @@ export class CountdownToMarkdownRenderChild extends MarkdownRenderChild {
   plugin: CountdownToPlugin;
   source: string;
   id: string;
+  context: MarkdownPostProcessorContext;
   constructor(
     plugin: CountdownToPlugin,
     source: string,
     containerEl: HTMLElement,
-    id: string
+    id: string,
+    context: MarkdownPostProcessorContext
   ) {
     super(containerEl);
     this.plugin = plugin;
     this.id = id;
     this.source = source;
+    this.context = context;
     this.display();
   }
 
@@ -262,10 +265,58 @@ export class CountdownToMarkdownRenderChild extends MarkdownRenderChild {
     }
   }
 
-  parseCountdownToParams(source: string): Record<string, string> {
-    const params: Record<string, string> = {};
-    const lines = source.trim().split('\n');
+  getPropertiesFromFrontmatter(): Record<string, string> {
+    const properties: Record<string, string> = {};
 
+    if (!this.context.sourcePath) {
+      return properties;
+    }
+
+    const file = this.plugin.app.vault.getAbstractFileByPath(this.context.sourcePath);
+    if (!file || !(file instanceof TFile)) {
+      return properties;
+    }
+
+    const fileCache = this.plugin.app.metadataCache.getFileCache(file);
+    if (!fileCache || !fileCache.frontmatter) {
+      return properties;
+    }
+
+    const frontmatter = fileCache.frontmatter;
+
+    const propertyMapping = [
+      'startDate',
+      'startTime',
+      'endDate',
+      'endTime',
+      'title',
+      'color',
+      'trailColor',
+      'type',
+      'progressType',
+      'updateInRealTime',
+      'updateInterval',
+      'updateIntervalInSeconds',
+      'infoFormat',
+      'infoFormatUpcoming',
+      'onCompleteText'
+    ];
+
+    propertyMapping.forEach(prop => {
+      const prefixedKey = `countdown-${prop}`;
+      if (frontmatter[prefixedKey] !== undefined) {
+        properties[prop] = String(frontmatter[prefixedKey]);
+      }
+    });
+
+    return properties;
+  }
+
+  parseCountdownToParams(source: string): Record<string, string> {
+    // Start with properties from frontmatter (obsidian metadata) and override with code block parameters
+    const params: Record<string, string> = this.getPropertiesFromFrontmatter();
+
+    const lines = source.trim().split('\n');
     lines.forEach(line => {
       const colonIndex = line.indexOf(':');
       if (colonIndex !== -1) {
