@@ -13,6 +13,10 @@ export interface CountdownToSettings {
   defaultInfoFormatUpcoming: string;
   defaultUpdateInRealTime: boolean;
   defaultUpdateIntervalSeconds: number;
+  defaultColorInGradient: boolean;
+  defaultStartColor: string;
+  defaultEndColor: string;
+  defaultMidColor: string;
 }
 
 export const DEFAULT_SETTINGS: CountdownToSettings = {
@@ -26,6 +30,10 @@ export const DEFAULT_SETTINGS: CountdownToSettings = {
   defaultInfoFormatUpcoming: '{title} is coming up in {remaining}!',
   defaultUpdateInRealTime: false,
   defaultUpdateIntervalSeconds: 1,
+  defaultColorInGradient: false,
+  defaultStartColor: '#ff5722', 
+  defaultEndColor: '#4CAF50',   
+  defaultMidColor: ' ', 
 };
 
 export class CountdownToSettingTab extends PluginSettingTab {

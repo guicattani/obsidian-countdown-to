@@ -78,7 +78,18 @@ export class CountdownToMarkdownRenderChild extends MarkdownRenderChild {
       const infoEl = containerEl.createDiv({ cls: 'countdown-to-info' });
 
       let bar;
-      const barColor = params.color || this.plugin.settings.defaultBarColor;
+      const initialbarColor = params.color || this.plugin.settings.defaultBarColor;
+      const isGradient = (params.colorInGradient || this.plugin.settings.defaultColorInGradient.toString()) === 'true';
+      const progressType = params.progressType || this.plugin.settings.defaultProgressType;
+      let barColor: string;
+      if (isGradient) {
+        const startColorParam = params.startColor || this.plugin.settings.defaultStartColor;
+        const endColorParam = params.endColor || this.plugin.settings.defaultEndColor;
+        const isCountdown = progressType.toLowerCase() === 'countdown';
+        barColor = isCountdown ? endColorParam : startColorParam;
+      } else {
+        barColor = initialbarColor;
+      }
       const trailColor = params.trailColor || this.plugin.settings.defaultTrailColor;
       const commonOptions = {
         strokeWidth: 4,
@@ -210,6 +221,8 @@ export class CountdownToMarkdownRenderChild extends MarkdownRenderChild {
     } else {
       countdownTo.bar.set(Math.floor(progress * 100) / 100);
     }
+    
+    this.updateBarGradient(countdownTo, progress, params, progressType);
 
     if (progress >= 1) {
       countdownTo.infoEl.setText(
@@ -265,6 +278,60 @@ export class CountdownToMarkdownRenderChild extends MarkdownRenderChild {
     }
   }
 
+  private updateBarGradient(
+    countdownTo: any,
+    progress: number,
+    params: Record<string, string>,
+    progressType: string
+  ): void {
+    const isGradient =
+      (params.colorInGradient || this.plugin.settings.defaultColorInGradient?.toString()) === "true";
+    if (!isGradient || !countdownTo?.bar) return;
+    const isCountdown = progressType.toLowerCase() === "countdown";
+
+    const startColor = params.startColor || this.plugin.settings.defaultStartColor;
+    const endColor = params.endColor || this.plugin.settings.defaultEndColor;
+    const midColorParam = params.midColor || this.plugin.settings.defaultMidColor;
+    const midColor = this.parseHexColor(midColorParam);
+
+    let colorProgress: number;
+    if (isCountdown) {
+        colorProgress = 1.0 - progress; 
+    } else {
+        colorProgress = Math.floor(progress * 100) / 100;
+    }
+
+    let newColor: string;
+    if (midColor) {
+      if (colorProgress < 0.5) {
+        newColor = this.interpolateColor(startColor, midColorParam, colorProgress * 2);
+      } else {
+        newColor = this.interpolateColor(midColorParam, endColor, (colorProgress - 0.5) * 2);
+      }
+    } else {
+      newColor = this.interpolateColor(startColor, endColor, colorProgress);
+    }
+
+    const barPath = (countdownTo.bar as any)?.path as SVGPathElement;
+    if (barPath) barPath.setAttribute("stroke", newColor);
+  }
+
+  private interpolateColor(color1: string, color2: string, factor: number): string {
+    const c1 = this.parseHexColor(color1);
+    const c2 = this.parseHexColor(color2);
+    if (!c1 || !c2) return color1;
+    const result = c1.map((v, i) => Math.round(v + factor * (c2[i] - v)));
+    return `#${result.map((x) => x.toString(16).padStart(2, "0")).join("")}`;
+  }
+
+  private parseHexColor(hex: string): number[] | null {
+    if (!hex) return null; 
+    const match = hex.trim().replace("#", "").match(/^([0-9a-f]{6})$/i);
+    if (!match) return null;
+    const intVal = parseInt(match[1], 16);
+    return [(intVal >> 16) & 255, (intVal >> 8) & 255, intVal & 255];
+  }  
+
   getPropertiesFromFrontmatter(): Record<string, string> {
     const properties: Record<string, string> = {};
 
@@ -299,7 +366,11 @@ export class CountdownToMarkdownRenderChild extends MarkdownRenderChild {
       'updateIntervalInSeconds',
       'infoFormat',
       'infoFormatUpcoming',
-      'onCompleteText'
+      'onCompleteText',
+      'colorInGradient',
+      'startColor',
+      'endColor',
+      'midColor'
     ];
 
     propertyMapping.forEach(prop => {
