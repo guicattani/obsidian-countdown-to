@@ -399,20 +399,23 @@ export class CountdownToMarkdownRenderChild extends MarkdownRenderChild {
       }
     });
 
-    if (!params.startDate && !params.startTime) {
-      throw new Error('Start date or start time is required');
-    }
-
-    if (!params.endDate && !params.endTime) {
-      throw new Error('End date or end time is required');
-    }
-
+    // Per the manual, omitting a start/end date is allowed: constructDateTime()
+    // defaults a missing date to today, so a fully empty countdown-to block works
+    // and runs daily. Only reject an explicit zero-length interval.
     if (params.startTime && !params.startDate && params.endDate && !params.endTime ||
         params.startTime && !params.startDate && params.endDate && params.endTime) {
       throw new Error('Start time with no start date requires an end time with no end date');
     }
 
     if (params.startDate === params.endDate && params.startTime === params.endTime) {
+      throw new Error('Start date and end date cannot be the same');
+    }
+
+    // A zero-length interval (identical explicit start and end) cannot be
+    // rendered as a progress bar, so only reject it when the dates are set.
+    if (params.startDate && params.startDate === params.endDate &&
+        (params.startTime === params.endTime ||
+         (!params.startTime && !params.endTime))) {
       throw new Error('Start date and end date cannot be the same');
     }
 
